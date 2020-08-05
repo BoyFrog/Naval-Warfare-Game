@@ -8,6 +8,7 @@ If Python and Arcade are installed, this example can be run from the command lin
 python -m arcade.examples.starting_template
 """
 import arcade
+from PointClass import Point
 
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 800
