@@ -7,12 +7,13 @@ template.
 If Python and Arcade are installed, this example can be run from the command line with:
 python -m arcade.examples.starting_template
 """
-import arcade
+import arcade, random
 from PointClass import Point
 
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 800
 SCREEN_TITLE = "Naval Warfare Game"
+SCALING = 2
 
 class MyGame(arcade.Window):
     """
@@ -26,15 +27,27 @@ class MyGame(arcade.Window):
     def __init__(self, width, height, title):
         super().__init__(width, height, title)
 
-        arcade.set_background_color(arcade.color.OCEAN_BOAT_BLUE)
-
         # If you have sprite lists, you should create them here,
         # and set them to None
+        self.ship_list = None
+        self.all_sprites = None
+
+        arcade.set_background_color(arcade.color.OCEAN_BOAT_BLUE)
 
     def setup(self):
         """ Set up the game variables. Call to re-start the game. """
         # Create your sprites and sprite lists here
-        pass
+        self.ship_list = arcade.SpriteList()
+        self.all_sprites = arcade.SpriteList()
+
+        self.player_sprite = arcade.Sprite("Images/Ship1.png", SCALING)
+        self.player_sprite.center_y = random.randrange(SCREEN_HEIGHT)
+        self.player_sprite.center_x = random.randrange(SCREEN_WIDTH)
+
+
+        self.ship_list.append(self.player_sprite)
+        self.all_sprites.append(self.player_sprite)
+
 
     def on_draw(self):
         """
@@ -44,6 +57,7 @@ class MyGame(arcade.Window):
         # This command should happen before we start drawing. It will clear
         # the screen to the background color, and erase what we drew last frame.
         arcade.start_render()
+        self.all_sprites.draw()
 
         # Call draw() on all your sprite lists below
 
@@ -74,7 +88,9 @@ class MyGame(arcade.Window):
         """
         Called whenever the mouse moves.
         """
-        pass
+        self.player_sprite.center_x = x
+        self.player_sprite.center_y = y
+
 
     def on_mouse_press(self, x, y, button, key_modifiers):
         """
