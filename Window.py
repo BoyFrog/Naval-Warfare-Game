@@ -13,7 +13,7 @@ from PointClass import Point
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 800
 SCREEN_TITLE = "Naval Warfare Game"
-SCALING = 2
+SCALING = 1
 
 class MyGame(arcade.Window):
     """
@@ -40,7 +40,7 @@ class MyGame(arcade.Window):
         self.ship_list = arcade.SpriteList()
         self.all_sprites = arcade.SpriteList()
 
-        self.player_sprite = arcade.Sprite("Images/Ship1.png", SCALING)
+        self.player_sprite = arcade.Sprite("Images/Ship1-x2.png")
         self.player_sprite.center_y = random.randrange(SCREEN_HEIGHT)
         self.player_sprite.center_x = random.randrange(SCREEN_WIDTH)
 
