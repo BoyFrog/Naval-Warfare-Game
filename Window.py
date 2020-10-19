@@ -7,42 +7,61 @@ template.
 If Python and Arcade are installed, this example can be run from the command line with:
 python -m arcade.examples.starting_template
 """
-import arcade, random
-from PointClass import Point
+# Import key libraries
+import arcade
+import math
 
+# Defining Constants
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 650
 SCREEN_TITLE = "Naval Warfare Game"
+# Sprite Size Scaling
 SCALING = 0.75
-
 # Speed limit
-MAX_SPEED = 3.0
-
-# How fast we accelerate
-ACCELERATION_RATE = 0.1
+MAX_SPEED = 1
+MIN_SPEED = 0
+# How fast the ships speed changes
+ACCELERATION_RATE = 0.005
+# How fast the ships rotation changes
+ANGLE_SPEED = 0.5
 
 
 class Player(arcade.Sprite):
+    # Call the parent init
+    def __init__(self):
+        """ Set up the player """
+        self.speed = 0
+
+        super().__init__("Images/Ship1-x2.png", SCALING)
+
+    # 'angle' is created by the parent
 
     def update(self):
-        self.center_x += self.change_x
-        self.center_y += self.change_y
+        # Update ship's position
+        self.center_x += self.speed * math.cos(math.radians(self.angle) + math.pi/2)
+        self.center_y += self.speed * math.sin(math.radians(self.angle) + math.pi/2)
 
+        # Wall Collision
         # Check to see if we hit the screen edge
         if self.left < 0:
             self.left = 0
-            self.change_x = 0 # Zero x speed
+            self.change_x = -self.change_x
         elif self.right > SCREEN_WIDTH - 1:
             self.right = SCREEN_WIDTH - 1
-            self.change_x = 0
+            self.change_x = -self.change_x
 
         if self.bottom < 0:
             self.bottom = 0
-            self.change_y = 0
+            self.change_y = -self.change_y
         elif self.top > SCREEN_HEIGHT - 1:
             self.top = SCREEN_HEIGHT - 1
-            self.change_y = 0
+            self.change_y = -self.change_y
 
+        # Speed Limits
+        if self.speed > MAX_SPEED:
+            self.speed = MAX_SPEED
+        elif self.speed < MIN_SPEED:
+            self.speed = MIN_SPEED
 
 class MyGame(arcade.Window):
     """
@@ -73,27 +92,18 @@ class MyGame(arcade.Window):
         self.up_pressed = False
         self.down_pressed = False
 
+        # Set the background colour/color
         arcade.set_background_color(arcade.color.OCEAN_BOAT_BLUE)
 
     def setup(self):
         """ Set up the game variables. Call to re-start the game. """
         # Create your sprites and sprite lists here
-        """
-        self.ship_list = arcade.SpriteList()
-        self.all_sprites = arcade.SpriteList()
 
-        self.player_sprite = arcade.Sprite("Images/Ship1-x2.png", SCALING)
-        self.player_sprite.center_y = random.randrange(SCREEN_HEIGHT)
-        self.player_sprite.center_x = random.randrange(SCREEN_WIDTH)
-
-        self.ship_list.append(self.player_sprite)
-        self.all_sprites.append(self.player_sprite)
-        """
         # Sprite lists
         self.player_list = arcade.SpriteList()
 
         # Set up the player
-        self.player_sprite = Player("Images/Ship1-x2.png", SCALING)
+        self.player_sprite = Player()
         self.player_sprite.center_x = SCREEN_WIDTH/2
         self.player_sprite.center_y = SCREEN_HEIGHT/2
         self.player_list.append(self.player_sprite)
@@ -119,22 +129,15 @@ class MyGame(arcade.Window):
         """
         # Apply acceleration based on the keys pressed
         if self.up_pressed and not self.down_pressed:
-            self.player_sprite.change_y += ACCELERATION_RATE
+            self.player_sprite.speed += ACCELERATION_RATE
         elif self.down_pressed and not self.up_pressed:
-            self.player_sprite.change_y += -ACCELERATION_RATE
-        if self.left_pressed and not self.right_pressed:
-            self.player_sprite.change_x += -ACCELERATION_RATE
-        elif self.right_pressed and not self.left_pressed:
-            self.player_sprite.change_x += ACCELERATION_RATE
+            self.player_sprite.speed -= ACCELERATION_RATE
 
-        if self.player_sprite.change_x > MAX_SPEED:
-            self.player_sprite.change_x = MAX_SPEED
-        elif self.player_sprite.change_x < -MAX_SPEED:
-            self.player_sprite.change_x = -MAX_SPEED
-        if self.player_sprite.change_y > MAX_SPEED:
-            self.player_sprite.change_y = MAX_SPEED
-        elif self.player_sprite.change_y < -MAX_SPEED:
-            self.player_sprite.change_y = -MAX_SPEED
+        # Change angle based on the keys pressed
+        if self.left_pressed and not self.right_pressed:
+            self.player_sprite.angle += ANGLE_SPEED
+        elif self.right_pressed and not self.left_pressed:
+            self.player_sprite.angle -= ANGLE_SPEED
 
         # Call update to move the sprite
         # If using a physics engine, call update on it instead of the sprite
@@ -169,6 +172,7 @@ class MyGame(arcade.Window):
             self.left_pressed = False
         elif key == arcade.key.RIGHT:
             self.right_pressed = False
+
 
 def main():
     """ Main method """
