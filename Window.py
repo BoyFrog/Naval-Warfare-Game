@@ -18,50 +18,64 @@ SCREEN_TITLE = "Naval Warfare Game"
 # Sprite Size Scaling
 SCALING = 0.75
 # Speed limit
-MAX_SPEED = 1
+MAX_SPEED = 1.5
 MIN_SPEED = 0
 # How fast the ships speed changes
-ACCELERATION_RATE = 0.005
+ACCELERATION_RATE = 0.01
 # How fast the ships rotation changes
-ANGLE_SPEED = 0.5
+ANGLE_SPEED = 0.5  # Maybe make angle speed based on ship speed
+AIM_DISTANCE_SPEED = 5
+AIM_ANGLE_SPEED = 2
 
 
-class Player(arcade.Sprite):
+class Ship(arcade.Sprite):
     # Call the parent init
-    def __init__(self):
-        """ Set up the player """
+    def __init__(self, image):
         self.speed = 0
 
-        super().__init__("Images/Ship1-x2.png", SCALING)
-
-    # 'angle' is created by the parent
+        super().__init__(image, SCALING)
 
     def update(self):
-        # Update ship's position
-        self.center_x += self.speed * math.cos(math.radians(self.angle) + math.pi/2)
-        self.center_y += self.speed * math.sin(math.radians(self.angle) + math.pi/2)
+        # Update ship's position based on ship's direction and speed
+        self.center_x += self.speed * math.cos(math.radians(self.angle))
+        self.center_y += self.speed * math.sin(math.radians(self.angle))
 
         # Wall Collision
         # Check to see if we hit the screen edge
         if self.left < 0:
             self.left = 0
-            self.change_x = -self.change_x
         elif self.right > SCREEN_WIDTH - 1:
             self.right = SCREEN_WIDTH - 1
-            self.change_x = -self.change_x
 
         if self.bottom < 0:
             self.bottom = 0
-            self.change_y = -self.change_y
         elif self.top > SCREEN_HEIGHT - 1:
             self.top = SCREEN_HEIGHT - 1
-            self.change_y = -self.change_y
 
         # Speed Limits
         if self.speed > MAX_SPEED:
             self.speed = MAX_SPEED
         elif self.speed < MIN_SPEED:
             self.speed = MIN_SPEED
+
+
+class Player(Ship):
+    # Call the parent init
+    def __init__(self):
+        """ Set up the player """
+        self.aim_angle = 0
+        self.aim_distance = 0
+
+        super().__init__("Images/Ship1-x2.png")
+        self.angle = 90
+
+    def update2(self):
+        # aim_distance limits
+        if self.aim_distance > 250:
+            self.aim_distance = 250
+        elif self.aim_distance < 0:
+            self.aim_distance = 0
+
 
 class MyGame(arcade.Window):
     """
@@ -91,6 +105,10 @@ class MyGame(arcade.Window):
         self.right_pressed = False
         self.up_pressed = False
         self.down_pressed = False
+        self.w_pressed = False
+        self.a_pressed = False
+        self.s_pressed = False
+        self.d_pressed = False
 
         # Set the background colour/color
         arcade.set_background_color(arcade.color.OCEAN_BOAT_BLUE)
@@ -117,6 +135,14 @@ class MyGame(arcade.Window):
         # the screen to the background color, and erase what we drew last frame.
         arcade.start_render()
 
+        arcade.draw_circle_outline(self.player_sprite.center_x, self.player_sprite.center_y,
+                                   self.player_sprite.aim_distance, arcade.color.BLACK, 3, -1)
+
+        end_x = self.player_sprite.aim_distance * math.cos(math.radians(self.player_sprite.aim_angle))
+        end_y = self.player_sprite.aim_distance * math.sin(math.radians(self.player_sprite.aim_angle))
+        arcade.draw_line(self.player_sprite.center_x, self.player_sprite.center_y, end_x + self.player_sprite.center_x,
+                         end_y + self.player_sprite.center_y, arcade.color.BLACK, 3)
+
         # Call draw() on all your sprite lists below
         # Draw all the sprites.
         self.player_list.draw()
@@ -128,21 +154,34 @@ class MyGame(arcade.Window):
         need it.
         """
         # Apply acceleration based on the keys pressed
-        if self.up_pressed and not self.down_pressed:
+        if self.w_pressed and not self.s_pressed:
             self.player_sprite.speed += ACCELERATION_RATE
-        elif self.down_pressed and not self.up_pressed:
+        elif self.s_pressed and not self.w_pressed:
             self.player_sprite.speed -= ACCELERATION_RATE
 
         # Change angle based on the keys pressed
-        if self.left_pressed and not self.right_pressed:
+        if self.a_pressed and not self.d_pressed:
             self.player_sprite.angle += ANGLE_SPEED
-        elif self.right_pressed and not self.left_pressed:
+        elif self.d_pressed and not self.a_pressed:
             self.player_sprite.angle -= ANGLE_SPEED
+
+        # Change aim_distance
+        if self.up_pressed and not self.down_pressed:
+            self.player_sprite.aim_distance += AIM_DISTANCE_SPEED
+        elif self.down_pressed and not self.up_pressed:
+            self.player_sprite.aim_distance -= AIM_DISTANCE_SPEED
+
+        # Change aim_angle
+        if self.left_pressed and not self.right_pressed:
+            self.player_sprite.aim_angle += AIM_ANGLE_SPEED
+        elif self.right_pressed and not self.left_pressed:
+            self.player_sprite.aim_angle -= AIM_ANGLE_SPEED
 
         # Call update to move the sprite
         # If using a physics engine, call update on it instead of the sprite
         # list.
         self.player_list.update()
+        self.player_sprite.update2()
 
     def on_key_press(self, key, key_modifiers):
         """
@@ -159,6 +198,14 @@ class MyGame(arcade.Window):
             self.left_pressed = True
         elif key == arcade.key.RIGHT:
             self.right_pressed = True
+        elif key == arcade.key.W:
+            self.w_pressed = True
+        elif key == arcade.key.A:
+            self.a_pressed = True
+        elif key == arcade.key.S:
+            self.s_pressed = True
+        elif key == arcade.key.D:
+            self.d_pressed = True
 
     def on_key_release(self, key, key_modifiers):
         """
@@ -172,6 +219,14 @@ class MyGame(arcade.Window):
             self.left_pressed = False
         elif key == arcade.key.RIGHT:
             self.right_pressed = False
+        elif key == arcade.key.W:
+            self.w_pressed = False
+        elif key == arcade.key.A:
+            self.a_pressed = False
+        elif key == arcade.key.S:
+            self.s_pressed = False
+        elif key == arcade.key.D:
+            self.d_pressed = False
 
 
 def main():
