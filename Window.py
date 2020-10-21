@@ -1,29 +1,20 @@
-"""
-Starting Template
-
-Once you have learned how to use classes, you can begin your program with this
-template.
-
-If Python and Arcade are installed, this example can be run from the command line with:
-python -m arcade.examples.starting_template
-"""
 # Import key libraries
 import arcade
 import math
 
-# Defining Constants
+# ~~~Defining Constants~~~
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 650
 SCREEN_TITLE = "Naval Warfare Game"
 # Sprite Size Scaling
 SCALING = 0.75
-# Speed limit
+# Ship Speed limit
 MAX_SPEED = 1.5
 MIN_SPEED = 0
-# How fast the ships speed changes
+# Rate of change of ship speed
 ACCELERATION_RATE = 0.01
-# How fast the ships rotation changes
-ANGLE_SPEED = 0.5  # Maybe make angle speed based on ship speed
+# Rate of change of ship angle
+ANGLE_SPEED = 1  # Maybe make angle speed based on ship speed
 AIM_DISTANCE_SPEED = 5
 AIM_ANGLE_SPEED = 2
 
@@ -44,13 +35,13 @@ class Ship(arcade.Sprite):
         # Check to see if we hit the screen edge
         if self.left < 0:
             self.left = 0
-        elif self.right > SCREEN_WIDTH - 1:
-            self.right = SCREEN_WIDTH - 1
+        elif self.right > arcade.get_window().width - 1:
+            self.right = arcade.get_window().width - 1
 
         if self.bottom < 0:
             self.bottom = 0
-        elif self.top > SCREEN_HEIGHT - 1:
-            self.top = SCREEN_HEIGHT - 1
+        elif self.top > arcade.get_window().height - 1:
+            self.top = arcade.get_window().height - 1
 
         # Speed Limits
         if self.speed > MAX_SPEED:
@@ -87,7 +78,7 @@ class MyGame(arcade.Window):
     """
 
     def __init__(self, width, height, title):
-        super().__init__(width, height, title)
+        super().__init__(width, height, title, resizable=True)
 
         # If you have sprite lists, you should create them here,
         # and set them to None
@@ -126,6 +117,9 @@ class MyGame(arcade.Window):
         self.player_sprite.center_y = SCREEN_HEIGHT/2
         self.player_list.append(self.player_sprite)
 
+    def on_resize(self, width, height):
+        super().on_resize(width, height)
+
     def on_draw(self):
         """
         Render the screen.
@@ -161,9 +155,9 @@ class MyGame(arcade.Window):
 
         # Change angle based on the keys pressed
         if self.a_pressed and not self.d_pressed:
-            self.player_sprite.angle += ANGLE_SPEED
+            self.player_sprite.angle += ANGLE_SPEED * self.player_sprite.speed
         elif self.d_pressed and not self.a_pressed:
-            self.player_sprite.angle -= ANGLE_SPEED
+            self.player_sprite.angle -= ANGLE_SPEED * self.player_sprite.speed
 
         # Change aim_distance
         if self.up_pressed and not self.down_pressed:
