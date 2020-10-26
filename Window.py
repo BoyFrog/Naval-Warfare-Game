@@ -8,6 +8,7 @@ SCREEN_HEIGHT = 650
 SCREEN_TITLE = "Naval Warfare Game"
 # Sprite Size Scaling
 SCALING = 1
+WEAPON_SCALING = 2
 # Ship Speed limit
 MAX_SPEED = 1.5
 MIN_SPEED = 0
@@ -21,22 +22,22 @@ AIM_ANGLE_SPEED = 2
 
 class Projectile(arcade.Sprite):
     # Init the class
-    def __init__(self, image, angle):
+    def __init__(self, image, scaling, angle):
         self.end_x = None
         self.end_y = None
         # Init the parent
-        super().__init__(image)
+        super().__init__(image, scaling)
         self.change_x = self.speed * math.cos(math.radians(angle))
         self.change_y = self.speed * math.sin(math.radians(angle))
-        print(self.change_x, " , ", self.change_y)
+        self.angle = angle
 
 
 class Torpedo(Projectile):
     # Init the class
-    def __init__(self, angle):
+    def __init__(self, scaling,angle):
         # Init the parent
         self.speed = 5
-        super().__init__("Images/NuclearMissle.png", angle)
+        super().__init__("Images/Torpedo.png", scaling, angle)
 
     def update(self):
         self.center_x += self.change_x
@@ -214,9 +215,8 @@ class MyGame(arcade.Window):
             self.player_sprite.aim_angle -= AIM_ANGLE_SPEED
 
         if self.space_pressed:
-            torpedo = Torpedo(self.player_sprite.aim_angle)
+            torpedo = Torpedo(WEAPON_SCALING, self.player_sprite.aim_angle)
 
-            #torpedo.angle = self.player_sprite.aim_angle
             torpedo.center_x = self.player_sprite.center_x
             torpedo.center_y = self.player_sprite.center_y
 
