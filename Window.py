@@ -7,7 +7,7 @@ SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 650
 SCREEN_TITLE = "Naval Warfare Game"
 # Sprite Size Scaling
-SCALING = 0.75
+SCALING = 1
 # Ship Speed limit
 MAX_SPEED = 1.5
 MIN_SPEED = 0
@@ -19,11 +19,47 @@ AIM_DISTANCE_SPEED = 5
 AIM_ANGLE_SPEED = 2
 
 
+class Projectile(arcade.Sprite):
+    # Init the class
+    def __init__(self, image, angle):
+        self.end_x = None
+        self.end_y = None
+        # Init the parent
+        super().__init__(image)
+        self.change_x = self.speed * math.cos(math.radians(angle))
+        self.change_y = self.speed * math.sin(math.radians(angle))
+        print(self.change_x, " , ", self.change_y)
+
+
+class Torpedo(Projectile):
+    # Init the class
+    def __init__(self, angle):
+        # Init the parent
+        self.speed = 5
+        super().__init__("Images/NuclearMissle.png", angle)
+
+    def update(self):
+        self.center_x += self.change_x
+        self.center_y += self.change_y
+
+        # Wall Collision
+        # Check to see if we hit the screen edge
+        if self.left < 0:
+            self.left = 0
+        elif self.right > arcade.get_window().width - 1:
+            self.right = arcade.get_window().width - 1
+
+        if self.bottom < 0:
+            self.bottom = 0
+        elif self.top > arcade.get_window().height - 1:
+            self.top = arcade.get_window().height - 1
+
+
 class Ship(arcade.Sprite):
-    # Call the parent init
+    # Init the class
     def __init__(self, image):
         self.speed = 0
-
+        # Init the parent
         super().__init__(image, SCALING)
 
     def update(self):
@@ -51,12 +87,12 @@ class Ship(arcade.Sprite):
 
 
 class Player(Ship):
-    # Call the parent init
+    # Init the class
     def __init__(self):
         """ Set up the player """
         self.aim_angle = 0
         self.aim_distance = 0
-
+        # Init the parent
         super().__init__("Images/Ship1-x2.png")
         self.angle = 90
 
@@ -84,8 +120,7 @@ class MyGame(arcade.Window):
         # and set them to None
         self.ship_list = None
         self.all_sprites = None
-
-        # Variables that will hold sprite lists
+        self.projectile_list = None
         self.player_list = None
 
         # Set up the player info
@@ -100,6 +135,7 @@ class MyGame(arcade.Window):
         self.a_pressed = False
         self.s_pressed = False
         self.d_pressed = False
+        self.space_pressed = False
 
         # Set the background colour/color
         arcade.set_background_color(arcade.color.OCEAN_BOAT_BLUE)
@@ -110,6 +146,7 @@ class MyGame(arcade.Window):
 
         # Sprite lists
         self.player_list = arcade.SpriteList()
+        self.projectile_list = arcade.SpriteList()
 
         # Set up the player
         self.player_sprite = Player()
@@ -140,12 +177,17 @@ class MyGame(arcade.Window):
         # Call draw() on all your sprite lists below
         # Draw all the sprites.
         self.player_list.draw()
+        self.projectile_list.draw()
 
     def on_update(self, delta_time):
         """
         All the logic to move, and the game logic goes here.
         Normally, you'll call update() on the sprite lists that
         need it.
+        """
+
+        """
+        Update player ship
         """
         # Apply acceleration based on the keys pressed
         if self.w_pressed and not self.s_pressed:
@@ -171,11 +213,19 @@ class MyGame(arcade.Window):
         elif self.right_pressed and not self.left_pressed:
             self.player_sprite.aim_angle -= AIM_ANGLE_SPEED
 
-        # Call update to move the sprite
-        # If using a physics engine, call update on it instead of the sprite
-        # list.
+        if self.space_pressed:
+            torpedo = Torpedo(self.player_sprite.aim_angle)
+
+            #torpedo.angle = self.player_sprite.aim_angle
+            torpedo.center_x = self.player_sprite.center_x
+            torpedo.center_y = self.player_sprite.center_y
+
+            self.projectile_list.append(torpedo)
+
+        # Call update to move the sprites
         self.player_list.update()
         self.player_sprite.update2()
+        self.projectile_list.update()
 
     def on_key_press(self, key, key_modifiers):
         """
@@ -200,6 +250,8 @@ class MyGame(arcade.Window):
             self.s_pressed = True
         elif key == arcade.key.D:
             self.d_pressed = True
+        elif key == arcade.key.SPACE:
+            self.space_pressed = True
 
     def on_key_release(self, key, key_modifiers):
         """
@@ -221,6 +273,8 @@ class MyGame(arcade.Window):
             self.s_pressed = False
         elif key == arcade.key.D:
             self.d_pressed = False
+        elif key == arcade.key.SPACE:
+            self.space_pressed = False
 
 
 def main():
