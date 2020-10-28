@@ -18,6 +18,7 @@ ACCELERATION_RATE = 0.01
 ANGLE_SPEED = 1  # Maybe make angle speed based on ship speed
 AIM_DISTANCE_SPEED = 5
 AIM_ANGLE_SPEED = 2
+WEAPON_COOLDOWN_TIME = 1
 
 
 class Projectile(arcade.Sprite):
@@ -34,26 +35,24 @@ class Projectile(arcade.Sprite):
 
 class Torpedo(Projectile):
     # Init the class
-    def __init__(self, scaling,angle):
+    def __init__(self, scaling, angle):
         # Init the parent
         self.speed = 5
         super().__init__("Images/Torpedo.png", scaling, angle)
+        self.alpha = 63
+        self.color = [0, 0, 127]
 
     def update(self):
         self.center_x += self.change_x
         self.center_y += self.change_y
 
-        # Wall Collision
-        # Check to see if we hit the screen edge
-        if self.left < 0:
-            self.left = 0
-        elif self.right > arcade.get_window().width - 1:
-            self.right = arcade.get_window().width - 1
-
-        if self.bottom < 0:
-            self.bottom = 0
-        elif self.top > arcade.get_window().height - 1:
-            self.top = arcade.get_window().height - 1
+        # Leaving window
+        # Check to see if we pass the screen edge
+        if self.right < 0 \
+                or self.left > arcade.get_window().width - 1 \
+                or self.top < 0 \
+                or self.bottom > arcade.get_window().height - 1:
+            self.remove_from_sprite_lists()
 
 
 class Ship(arcade.Sprite):
@@ -63,10 +62,14 @@ class Ship(arcade.Sprite):
         # Init the parent
         super().__init__(image, SCALING)
 
-    def update(self):
+        self.cooldown_time = WEAPON_COOLDOWN_TIME
+
+    def on_update(self, delta_time):
         # Update ship's position based on ship's direction and speed
         self.center_x += self.speed * math.cos(math.radians(self.angle))
         self.center_y += self.speed * math.sin(math.radians(self.angle))
+
+        self.cooldown_time += delta_time
 
         # Wall Collision
         # Check to see if we hit the screen edge
@@ -92,17 +95,17 @@ class Player(Ship):
     def __init__(self):
         """ Set up the player """
         self.aim_angle = 0
-        self.aim_distance = 0
+        self.aim_distance = 50
         # Init the parent
         super().__init__("Images/Ship1-x2.png")
         self.angle = 90
 
     def update2(self):
         # aim_distance limits
-        if self.aim_distance > 250:
-            self.aim_distance = 250
-        elif self.aim_distance < 0:
-            self.aim_distance = 0
+        if self.aim_distance > 350:
+            self.aim_distance = 350
+        elif self.aim_distance < 50:
+            self.aim_distance = 50
 
 
 class MyGame(arcade.Window):
@@ -215,15 +218,18 @@ class MyGame(arcade.Window):
             self.player_sprite.aim_angle -= AIM_ANGLE_SPEED
 
         if self.space_pressed:
-            torpedo = Torpedo(WEAPON_SCALING, self.player_sprite.aim_angle)
+            if self.player_sprite.cooldown_time >= WEAPON_COOLDOWN_TIME:
+                self.player_sprite.cooldown_time = 0
 
-            torpedo.center_x = self.player_sprite.center_x
-            torpedo.center_y = self.player_sprite.center_y
+                torpedo = Torpedo(WEAPON_SCALING, self.player_sprite.aim_angle)
 
-            self.projectile_list.append(torpedo)
+                torpedo.center_x = self.player_sprite.center_x
+                torpedo.center_y = self.player_sprite.center_y
+
+                self.projectile_list.append(torpedo)
 
         # Call update to move the sprites
-        self.player_list.update()
+        self.player_list.on_update(delta_time)
         self.player_sprite.update2()
         self.projectile_list.update()
 
