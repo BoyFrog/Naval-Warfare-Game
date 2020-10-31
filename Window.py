@@ -9,6 +9,7 @@ SCREEN_TITLE = "Naval Warfare Game"
 # Sprite Size Scaling
 SCALING = 1
 WEAPON_SCALING = 2
+EXPLOSION_SCALING = 4
 # Ship Speed limit
 MAX_SPEED = 1.5
 MIN_SPEED = 0
@@ -46,9 +47,42 @@ class Torpedo(Projectile):
         self.center_x += self.change_x
         self.center_y += self.change_y
 
-        # Leaving window
-        # Check to see if we pass the screen edge
-        if self.right < 0 \
+        # If torpedo has reached end point then explode it
+        # Four Quadrants
+        if 0 <= self.angle % 360 < 90:
+            if self.right >= self.end_x and self.top >= self.end_y:
+                self.remove_from_sprite_lists()
+                explosion = arcade.Sprite("Images/Explosion.png", EXPLOSION_SCALING)
+                explosion.center_x = self.right
+                explosion.center_y = self.top
+                arcade.get_window().explosion_list.append(explosion)
+
+        elif 90 <= self.angle % 360 < 180:
+            if self.left <= self.end_x and self.top >= self.end_y:
+                self.remove_from_sprite_lists()
+                explosion = arcade.Sprite("Images/Explosion.png", EXPLOSION_SCALING)
+                explosion.center_x = self.left
+                explosion.center_y = self.top
+                arcade.get_window().explosion_list.append(explosion)
+
+        elif 180 <= self.angle % 360 < 270:
+            if self.left <= self.end_x and self.bottom <= self.end_y:
+                self.remove_from_sprite_lists()
+                explosion = arcade.Sprite("Images/Explosion.png", EXPLOSION_SCALING)
+                explosion.center_x = self.left
+                explosion.center_y = self.bottom
+                arcade.get_window().explosion_list.append(explosion)
+
+        elif 270 <= self.angle % 360 < 360:
+            if self.right >= self.end_x and self.bottom <= self.end_y:
+                self.remove_from_sprite_lists()
+                explosion = arcade.Sprite("Images/Explosion.png", EXPLOSION_SCALING)
+                explosion.center_x = self.right
+                explosion.center_y = self.bottom
+                arcade.get_window().explosion_list.append(explosion)
+
+        # If it is off the window then remove it
+        elif self.right < 0 \
                 or self.left > arcade.get_window().width - 1 \
                 or self.top < 0 \
                 or self.bottom > arcade.get_window().height - 1:
@@ -104,8 +138,8 @@ class Player(Ship):
         # aim_distance limits
         if self.aim_distance > 350:
             self.aim_distance = 350
-        elif self.aim_distance < 50:
-            self.aim_distance = 50
+        elif self.aim_distance < 75:
+            self.aim_distance = 75
 
 
 class MyGame(arcade.Window):
@@ -126,6 +160,7 @@ class MyGame(arcade.Window):
         self.all_sprites = None
         self.projectile_list = None
         self.player_list = None
+        self.explosion_list = None
 
         # Set up the player info
         self.player_sprite = None
@@ -151,6 +186,7 @@ class MyGame(arcade.Window):
         # Sprite lists
         self.player_list = arcade.SpriteList()
         self.projectile_list = arcade.SpriteList()
+        self.explosion_list = arcade.SpriteList()
 
         # Set up the player
         self.player_sprite = Player()
@@ -171,17 +207,19 @@ class MyGame(arcade.Window):
         arcade.start_render()
 
         arcade.draw_circle_outline(self.player_sprite.center_x, self.player_sprite.center_y,
-                                   self.player_sprite.aim_distance, arcade.color.BLACK, 3, -1)
+                                   self.player_sprite.aim_distance, [0, 75, 120], 3, -1)
 
-        end_x = self.player_sprite.aim_distance * math.cos(math.radians(self.player_sprite.aim_angle))
-        end_y = self.player_sprite.aim_distance * math.sin(math.radians(self.player_sprite.aim_angle))
-        arcade.draw_line(self.player_sprite.center_x, self.player_sprite.center_y, end_x + self.player_sprite.center_x,
-                         end_y + self.player_sprite.center_y, arcade.color.BLACK, 3)
+        aim_angle = self.player_sprite.aim_angle
+        aim_distance = self.player_sprite.aim_distance
+        end_x = aim_distance * math.cos(math.radians(aim_angle)) + self.player_sprite.center_x
+        end_y = aim_distance * math.sin(math.radians(aim_angle)) + self.player_sprite.center_y
+        arcade.draw_line(self.player_sprite.center_x, self.player_sprite.center_y, end_x, end_y, [0, 75, 120], 3)
 
         # Call draw() on all your sprite lists below
         # Draw all the sprites.
-        self.player_list.draw()
         self.projectile_list.draw()
+        self.explosion_list.draw()
+        self.player_list.draw()
 
     def on_update(self, delta_time):
         """
@@ -226,7 +264,18 @@ class MyGame(arcade.Window):
                 torpedo.center_x = self.player_sprite.center_x
                 torpedo.center_y = self.player_sprite.center_y
 
+                aim_angle = self.player_sprite.aim_angle
+                aim_distance = self.player_sprite.aim_distance
+                torpedo.end_x = aim_distance * math.cos(math.radians(aim_angle)) + self.player_sprite.center_x
+                torpedo.end_y = aim_distance * math.sin(math.radians(aim_angle)) + self.player_sprite.center_y
+
                 self.projectile_list.append(torpedo)
+
+        # Make explosions smaller and if small enough then remove them
+        for explosion in self.explosion_list:
+            explosion.scale -= 0.05
+            if explosion.scale <= 0:
+                explosion.remove_from_sprite_lists()
 
         # Call update to move the sprites
         self.player_list.on_update(delta_time)
