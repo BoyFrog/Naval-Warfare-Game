@@ -16,7 +16,7 @@ MIN_SPEED = 0
 # Rate of change of ship speed
 ACCELERATION_RATE = 0.01
 # Rate of change of ship angle
-ANGLE_SPEED = 1  # Maybe make angle speed based on ship speed
+ANGLE_SPEED = 1
 AIM_DISTANCE_SPEED = 5
 AIM_ANGLE_SPEED = 2
 WEAPON_COOLDOWN_TIME = 1
@@ -25,8 +25,9 @@ WEAPON_COOLDOWN_TIME = 1
 class Projectile(arcade.Sprite):
     # Init the class
     def __init__(self, image, scaling, angle):
-        self.end_x = None
-        self.end_y = None
+        self.start_x = None
+        self.start_y = None
+        self.distance_to_travel = None
         # Init the parent
         super().__init__(image, scaling)
         self.change_x = self.speed * math.cos(math.radians(angle))
@@ -39,47 +40,28 @@ class Torpedo(Projectile):
     def __init__(self, scaling, angle):
         # Init the parent
         self.speed = 5
+        self.distance = 0
         super().__init__("Images/Torpedo.png", scaling, angle)
         self.alpha = 63
         self.color = [0, 0, 127]
 
     def update(self):
+        # Update position
         self.center_x += self.change_x
         self.center_y += self.change_y
 
-        # If torpedo has reached end point then explode it
-        # Four Quadrants
-        if 0 <= self.angle % 360 < 90:
-            if self.right >= self.end_x and self.top >= self.end_y:
-                self.remove_from_sprite_lists()
-                explosion = arcade.Sprite("Images/Explosion.png", EXPLOSION_SCALING)
-                explosion.center_x = self.right
-                explosion.center_y = self.top
-                arcade.get_window().explosion_list.append(explosion)
+        # If torpedo has reached it's endpoint then make an explosion
+        self.distance = ((self.center_x - self.start_x) ** 2 + (self.center_y - self.start_y) ** 2) ** 0.5
 
-        elif 90 <= self.angle % 360 < 180:
-            if self.left <= self.end_x and self.top >= self.end_y:
-                self.remove_from_sprite_lists()
-                explosion = arcade.Sprite("Images/Explosion.png", EXPLOSION_SCALING)
-                explosion.center_x = self.left
-                explosion.center_y = self.top
-                arcade.get_window().explosion_list.append(explosion)
+        if self.distance >= self.distance_to_travel:
+            self.remove_from_sprite_lists()
 
-        elif 180 <= self.angle % 360 < 270:
-            if self.left <= self.end_x and self.bottom <= self.end_y:
-                self.remove_from_sprite_lists()
-                explosion = arcade.Sprite("Images/Explosion.png", EXPLOSION_SCALING)
-                explosion.center_x = self.left
-                explosion.center_y = self.bottom
-                arcade.get_window().explosion_list.append(explosion)
+            explosion = arcade.Sprite("Images/Explosion.png", EXPLOSION_SCALING)
+            explosion.center_x = self.center_x
+            explosion.center_y = self.center_y
 
-        elif 270 <= self.angle % 360 < 360:
-            if self.right >= self.end_x and self.bottom <= self.end_y:
-                self.remove_from_sprite_lists()
-                explosion = arcade.Sprite("Images/Explosion.png", EXPLOSION_SCALING)
-                explosion.center_x = self.right
-                explosion.center_y = self.bottom
-                arcade.get_window().explosion_list.append(explosion)
+            arcade.get_window().explosion_list.append(explosion)
+            arcade.get_window().all_sprites.append(explosion)
 
         # If it is off the window then remove it
         elif self.right < 0 \
@@ -93,6 +75,7 @@ class Ship(arcade.Sprite):
     # Init the class
     def __init__(self, image):
         self.speed = 0
+        self.hp = 100
         # Init the parent
         super().__init__(image, SCALING)
 
@@ -158,7 +141,7 @@ class MyGame(arcade.Window):
         # and set them to None
         self.ship_list = None
         self.all_sprites = None
-        self.projectile_list = None
+        self.torpedo_list = None
         self.player_list = None
         self.explosion_list = None
 
@@ -176,6 +159,8 @@ class MyGame(arcade.Window):
         self.d_pressed = False
         self.space_pressed = False
 
+        self.active_torpedo_distance = None
+
         # Set the background colour/color
         arcade.set_background_color(arcade.color.OCEAN_BOAT_BLUE)
 
@@ -184,15 +169,30 @@ class MyGame(arcade.Window):
         # Create your sprites and sprite lists here
 
         # Sprite lists
+        self.ship_list = arcade.SpriteList()
         self.player_list = arcade.SpriteList()
-        self.projectile_list = arcade.SpriteList()
+        self.torpedo_list = arcade.SpriteList()
         self.explosion_list = arcade.SpriteList()
+        self.all_sprites = arcade.SpriteList()
 
         # Set up the player
         self.player_sprite = Player()
         self.player_sprite.center_x = SCREEN_WIDTH/2
         self.player_sprite.center_y = SCREEN_HEIGHT/2
         self.player_list.append(self.player_sprite)
+        self.ship_list.append(self.player_sprite)
+        self.all_sprites.append(self.player_sprite)
+
+        # Set up the distance that determines if the torpedo explodes when it collides with another sprite
+        # Creating objects to use their attributes
+        ship = Player()
+        torpedo = Torpedo(WEAPON_SCALING, 0)
+
+        # The time that has to pass before the torpedo is ahead of the ship that fired it
+        ticks = ((ship.width + torpedo.width) / 2) * ((torpedo.speed - MAX_SPEED) ** -1)
+
+        # The distance the torpedo has to travel to be ahead of the ship that fired it
+        self.active_torpedo_distance = ticks * torpedo.speed
 
     def on_resize(self, width, height):
         super().on_resize(width, height)
@@ -217,7 +217,7 @@ class MyGame(arcade.Window):
 
         # Call draw() on all your sprite lists below
         # Draw all the sprites.
-        self.projectile_list.draw()
+        self.torpedo_list.draw()
         self.explosion_list.draw()
         self.player_list.draw()
 
@@ -255,6 +255,7 @@ class MyGame(arcade.Window):
         elif self.right_pressed and not self.left_pressed:
             self.player_sprite.aim_angle -= AIM_ANGLE_SPEED
 
+        # Player firing torpedo
         if self.space_pressed:
             if self.player_sprite.cooldown_time >= WEAPON_COOLDOWN_TIME:
                 self.player_sprite.cooldown_time = 0
@@ -263,24 +264,51 @@ class MyGame(arcade.Window):
 
                 torpedo.center_x = self.player_sprite.center_x
                 torpedo.center_y = self.player_sprite.center_y
+                torpedo.start_x = self.player_sprite.center_x
+                torpedo.start_y = self.player_sprite.center_y
+                torpedo.distance_to_travel = self.player_sprite.aim_distance
 
-                aim_angle = self.player_sprite.aim_angle
-                aim_distance = self.player_sprite.aim_distance
-                torpedo.end_x = aim_distance * math.cos(math.radians(aim_angle)) + self.player_sprite.center_x
-                torpedo.end_y = aim_distance * math.sin(math.radians(aim_angle)) + self.player_sprite.center_y
+                self.torpedo_list.append(torpedo)
+                self.all_sprites.append(torpedo)
 
-                self.projectile_list.append(torpedo)
-
-        # Make explosions smaller and if small enough then remove them
+        # Explosions
         for explosion in self.explosion_list:
+            # If a ship collides with explosion, decrease it's hp
+            hit_list = arcade.check_for_collision_with_list(explosion, self.ship_list)
+            for ship in hit_list:
+                ship.hp -= 5
+
+            # Reduce explosion size and if small enough then remove it
             explosion.scale -= 0.05
             if explosion.scale <= 0:
                 explosion.remove_from_sprite_lists()
 
+        # Torpedoes
+        for torpedo in self.torpedo_list:
+            # If the torpedo has moved in front of the ship that fired it, then check for collisions
+            # This prevents a ship from damaging itself from it's own torpedo
+            if torpedo.distance > self.active_torpedo_distance:
+                hit_list = arcade.check_for_collision_with_list(torpedo, self.all_sprites)
+
+                # If the torpedo did hit something, explode it
+                if len(hit_list) > 0:
+                    torpedo.remove_from_sprite_lists()
+
+                    explosion = arcade.Sprite("Images/Explosion.png", EXPLOSION_SCALING)
+                    explosion.center_x = torpedo.center_x
+                    explosion.center_y = torpedo.center_y
+
+                    self.explosion_list.append(explosion)
+
+                # If a ship was hit, decrease it's hp
+                for sprite in hit_list:
+                    if sprite in self.ship_list:
+                        sprite.hp -= 20
+
         # Call update to move the sprites
         self.player_list.on_update(delta_time)
         self.player_sprite.update2()
-        self.projectile_list.update()
+        self.torpedo_list.update()
 
     def on_key_press(self, key, key_modifiers):
         """
