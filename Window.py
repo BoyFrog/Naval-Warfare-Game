@@ -4,7 +4,7 @@ import math
 
 # ~~~Defining Constants~~~
 SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 650
+SCREEN_HEIGHT = 800
 SCREEN_TITLE = "Naval Warfare Game"
 # Sprite Size Scaling
 SCALING = 1
@@ -41,6 +41,7 @@ class Torpedo(Projectile):
         # Init the parent
         self.speed = 5
         self.distance = 0
+        self.origin = None
         super().__init__("Images/Torpedo.png", scaling, angle)
         self.alpha = 63
         self.color = [0, 0, 127]
@@ -76,6 +77,7 @@ class Ship(arcade.Sprite):
     def __init__(self, image):
         self.speed = 0
         self.hp = 100
+        self.identifier = None
         # Init the parent
         super().__init__(image, SCALING)
 
@@ -179,20 +181,10 @@ class MyGame(arcade.Window):
         self.player_sprite = Player()
         self.player_sprite.center_x = SCREEN_WIDTH/2
         self.player_sprite.center_y = SCREEN_HEIGHT/2
+        self.player_sprite.identifier = 0
         self.player_list.append(self.player_sprite)
         self.ship_list.append(self.player_sprite)
         self.all_sprites.append(self.player_sprite)
-
-        # Set up the distance that determines if the torpedo explodes when it collides with another sprite
-        # Creating objects to use their attributes
-        ship = Player()
-        torpedo = Torpedo(WEAPON_SCALING, 0)
-
-        # The time that has to pass before the torpedo is ahead of the ship that fired it
-        ticks = ((ship.width + torpedo.width) / 2) * ((torpedo.speed - MAX_SPEED) ** -1)
-
-        # The distance the torpedo has to travel to be ahead of the ship that fired it
-        self.active_torpedo_distance = ticks * torpedo.speed
 
     def on_resize(self, width, height):
         super().on_resize(width, height)
@@ -267,6 +259,7 @@ class MyGame(arcade.Window):
                 torpedo.start_x = self.player_sprite.center_x
                 torpedo.start_y = self.player_sprite.center_y
                 torpedo.distance_to_travel = self.player_sprite.aim_distance
+                torpedo.origin = self.player_sprite.identifier
 
                 self.torpedo_list.append(torpedo)
                 self.all_sprites.append(torpedo)
@@ -285,25 +278,26 @@ class MyGame(arcade.Window):
 
         # Torpedoes
         for torpedo in self.torpedo_list:
-            # If the torpedo has moved in front of the ship that fired it, then check for collisions
-            # This prevents a ship from damaging itself from it's own torpedo
-            if torpedo.distance > self.active_torpedo_distance:
-                hit_list = arcade.check_for_collision_with_list(torpedo, self.all_sprites)
+            hit_list = arcade.check_for_collision_with_list(torpedo, self.all_sprites)
 
-                # If the torpedo did hit something, explode it
-                if len(hit_list) > 0:
-                    torpedo.remove_from_sprite_lists()
+            if self.ship_list[torpedo.origin] in hit_list:
+                hit_list.remove(self.ship_list[torpedo.origin])
 
-                    explosion = arcade.Sprite("Images/Explosion.png", EXPLOSION_SCALING)
-                    explosion.center_x = torpedo.center_x
-                    explosion.center_y = torpedo.center_y
+            # If the torpedo did hit something, explode it
+            if len(hit_list) > 0:
+                torpedo.remove_from_sprite_lists()
 
-                    self.explosion_list.append(explosion)
+                explosion = arcade.Sprite("Images/Explosion.png", EXPLOSION_SCALING)
+                explosion.center_x = torpedo.center_x
+                explosion.center_y = torpedo.center_y
 
-                # If a ship was hit, decrease it's hp
-                for sprite in hit_list:
-                    if sprite in self.ship_list:
-                        sprite.hp -= 20
+                self.explosion_list.append(explosion)
+                self.all_sprites.append(explosion)
+
+            # If a ship was hit, decrease it's hp
+            for sprite in hit_list:
+                if sprite in self.ship_list:
+                    sprite.hp -= 20
 
         # Call update to move the sprites
         self.player_list.on_update(delta_time)
