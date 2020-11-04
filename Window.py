@@ -3,8 +3,8 @@ import arcade
 import math
 
 # ~~~Defining Constants~~~
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 800
+SCREEN_WIDTH = 1536
+SCREEN_HEIGHT = 801
 SCREEN_TITLE = "Naval Warfare Game"
 # Sprite Size Scaling
 SCALING = 1
@@ -20,6 +20,11 @@ ANGLE_SPEED = 1
 AIM_DISTANCE_SPEED = 5
 AIM_ANGLE_SPEED = 2
 WEAPON_COOLDOWN_TIME = 1
+MAX_AIM_DISTANCE = 350
+MIN_AIM_DISTANCE = 75
+# Setup Variables
+ENEMY_SHIP_NUMBER = 3
+DISTANCE_FROM_START = SCREEN_HEIGHT / 4
 
 
 class Projectile(arcade.Sprite):
@@ -109,6 +114,11 @@ class Ship(arcade.Sprite):
             self.speed = MIN_SPEED
 
 
+class AI(Ship):
+    def __init__(self, image):
+        super().__init__(image)
+
+
 class Player(Ship):
     # Init the class
     def __init__(self):
@@ -116,15 +126,15 @@ class Player(Ship):
         self.aim_angle = 0
         self.aim_distance = 50
         # Init the parent
-        super().__init__("Images/Ship1-x2.png")
+        super().__init__("Images/PlayerShip.png")
         self.angle = 90
 
     def update2(self):
         # aim_distance limits
-        if self.aim_distance > 350:
-            self.aim_distance = 350
-        elif self.aim_distance < 75:
-            self.aim_distance = 75
+        if self.aim_distance > MAX_AIM_DISTANCE:
+            self.aim_distance = MAX_AIM_DISTANCE
+        elif self.aim_distance < MIN_AIM_DISTANCE:
+            self.aim_distance = MIN_AIM_DISTANCE
 
 
 class MyGame(arcade.Window):
@@ -138,6 +148,8 @@ class MyGame(arcade.Window):
 
     def __init__(self, width, height, title):
         super().__init__(width, height, title, resizable=True)
+        self.set_maximum_size(self.width, self.height)
+        self.maximize()
 
         # If you have sprite lists, you should create them here,
         # and set them to None
@@ -146,6 +158,7 @@ class MyGame(arcade.Window):
         self.torpedo_list = None
         self.player_list = None
         self.explosion_list = None
+        self.enemy_ship_list = None
 
         # Set up the player info
         self.player_sprite = None
@@ -176,6 +189,7 @@ class MyGame(arcade.Window):
         self.torpedo_list = arcade.SpriteList()
         self.explosion_list = arcade.SpriteList()
         self.all_sprites = arcade.SpriteList()
+        self.enemy_ship_list = arcade.SpriteList()
 
         # Set up the player
         self.player_sprite = Player()
@@ -185,6 +199,23 @@ class MyGame(arcade.Window):
         self.player_list.append(self.player_sprite)
         self.ship_list.append(self.player_sprite)
         self.all_sprites.append(self.player_sprite)
+
+        for i in range(ENEMY_SHIP_NUMBER):
+            ship = AI("Images/EnemyShip" + str((i % 3) + 1) + ".png")
+
+            ship.identifier = i + 1
+
+            self.all_sprites.append(ship)
+            self.ship_list.append(ship)
+            self.enemy_ship_list.append(ship)
+
+        i = 0
+        for ship in self.ship_list:
+            angle = i * 360 / len(self.ship_list)
+            ship.center_x = DISTANCE_FROM_START * math.cos(math.radians(angle)) + SCREEN_WIDTH / 2
+            ship.center_y = DISTANCE_FROM_START * math.sin(math.radians(angle)) + SCREEN_HEIGHT / 2
+            ship.angle = angle
+            i += 1
 
     def on_resize(self, width, height):
         super().on_resize(width, height)
@@ -211,7 +242,7 @@ class MyGame(arcade.Window):
         # Draw all the sprites.
         self.torpedo_list.draw()
         self.explosion_list.draw()
-        self.player_list.draw()
+        self.ship_list.draw()
 
     def on_update(self, delta_time):
         """
