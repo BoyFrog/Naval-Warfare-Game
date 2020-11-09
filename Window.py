@@ -1,6 +1,7 @@
 # Import key libraries
 import arcade
 import math
+import random
 
 # ~~~Defining Constants~~~
 SCREEN_WIDTH = 1536
@@ -25,6 +26,7 @@ MIN_AIM_DISTANCE = 75
 # Setup Variables
 ENEMY_SHIP_NUMBER = 3
 DISTANCE_FROM_START = SCREEN_HEIGHT / 4
+AI_BORDER_DISTANCE = 100
 
 
 class Projectile(arcade.Sprite):
@@ -174,7 +176,7 @@ class MyGame(arcade.Window):
         self.d_pressed = False
         self.space_pressed = False
 
-        self.active_torpedo_distance = None
+        self.ai_border_rect = None
 
         # Set the background colour/color
         arcade.set_background_color(arcade.color.OCEAN_BOAT_BLUE)
@@ -219,6 +221,11 @@ class MyGame(arcade.Window):
 
     def on_resize(self, width, height):
         super().on_resize(width, height)
+        p1 = (AI_BORDER_DISTANCE, AI_BORDER_DISTANCE)
+        p2 = (width - AI_BORDER_DISTANCE, AI_BORDER_DISTANCE)
+        p3 = (width - AI_BORDER_DISTANCE, height - AI_BORDER_DISTANCE)
+        p4 = (AI_BORDER_DISTANCE, height - AI_BORDER_DISTANCE)
+        self.ai_border_rect = [p1, p2, p3, p4]
 
     def on_draw(self):
         """
@@ -330,8 +337,18 @@ class MyGame(arcade.Window):
                 if sprite in self.ship_list:
                     sprite.hp -= 20
 
+        for ship in self.enemy_ship_list:
+            if ship.speed < MAX_SPEED:
+                ship.speed += ACCELERATION_RATE
+
+            if not arcade.is_point_in_polygon(ship.center_x, ship.center_y, self.ai_border_rect):
+                if (ship.angle // 45) % 2 == 0:
+                    ship.angle += ANGLE_SPEED
+                else:
+                    ship.angle -= ANGLE_SPEED
+
         # Call update to move the sprites
-        self.player_list.on_update(delta_time)
+        self.ship_list.on_update(delta_time)
         self.player_sprite.update2()
         self.torpedo_list.update()
 
