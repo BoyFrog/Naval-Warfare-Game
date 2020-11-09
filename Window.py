@@ -26,8 +26,8 @@ MIN_AIM_DISTANCE = 75
 # Setup Variables
 ENEMY_SHIP_NUMBER = 3
 DISTANCE_FROM_START = SCREEN_HEIGHT / 4
-AI_BORDER_DISTANCE = 100
-
+AI_OUTER_DISTANCE = 100
+AI_INNER_DISTANCE = 125
 
 class Projectile(arcade.Sprite):
     # Init the class
@@ -83,7 +83,7 @@ class Ship(arcade.Sprite):
     # Init the class
     def __init__(self, image):
         self.speed = 0
-        self.hp = 100
+        self.hp = 1000
         self.identifier = None
         # Init the parent
         super().__init__(image, SCALING)
@@ -119,6 +119,8 @@ class Ship(arcade.Sprite):
 class AI(Ship):
     def __init__(self, image):
         super().__init__(image)
+        self.left_turn = False
+        self.right_turn = False
 
 
 class Player(Ship):
@@ -176,7 +178,8 @@ class MyGame(arcade.Window):
         self.d_pressed = False
         self.space_pressed = False
 
-        self.ai_border_rect = None
+        self.ai_outer_rect = None
+        self.ai_inner_rect = None
 
         # Set the background colour/color
         arcade.set_background_color(arcade.color.OCEAN_BOAT_BLUE)
@@ -221,11 +224,17 @@ class MyGame(arcade.Window):
 
     def on_resize(self, width, height):
         super().on_resize(width, height)
-        p1 = (AI_BORDER_DISTANCE, AI_BORDER_DISTANCE)
-        p2 = (width - AI_BORDER_DISTANCE, AI_BORDER_DISTANCE)
-        p3 = (width - AI_BORDER_DISTANCE, height - AI_BORDER_DISTANCE)
-        p4 = (AI_BORDER_DISTANCE, height - AI_BORDER_DISTANCE)
-        self.ai_border_rect = [p1, p2, p3, p4]
+        p1 = (AI_OUTER_DISTANCE, AI_OUTER_DISTANCE)
+        p2 = (width - AI_OUTER_DISTANCE, AI_OUTER_DISTANCE)
+        p3 = (width - AI_OUTER_DISTANCE, height - AI_OUTER_DISTANCE)
+        p4 = (AI_OUTER_DISTANCE, height - AI_OUTER_DISTANCE)
+        self.ai_outer_rect = [p1, p2, p3, p4]
+
+        p1 = (AI_INNER_DISTANCE, AI_INNER_DISTANCE)
+        p2 = (width - AI_INNER_DISTANCE, AI_INNER_DISTANCE)
+        p3 = (width - AI_INNER_DISTANCE, height - AI_INNER_DISTANCE)
+        p4 = (AI_INNER_DISTANCE, height - AI_INNER_DISTANCE)
+        self.ai_inner_rect = [p1, p2, p3, p4]
 
     def on_draw(self):
         """
@@ -335,17 +344,34 @@ class MyGame(arcade.Window):
             # If a ship was hit, decrease it's hp
             for sprite in hit_list:
                 if sprite in self.ship_list:
-                    sprite.hp -= 20
+                    sprite.hp -= 100
 
         for ship in self.enemy_ship_list:
             if ship.speed < MAX_SPEED:
                 ship.speed += ACCELERATION_RATE
 
-            if not arcade.is_point_in_polygon(ship.center_x, ship.center_y, self.ai_border_rect):
+            if not arcade.is_point_in_polygon(ship.center_x, ship.center_y, self.ai_outer_rect)\
+                    and not ship.left_turn \
+                    and not ship.right_turn:
                 if (ship.angle // 45) % 2 == 0:
-                    ship.angle += ANGLE_SPEED
+                    ship.left_turn = True
                 else:
-                    ship.angle -= ANGLE_SPEED
+                    ship.right_turn = True
+
+            if ship.left_turn:
+                ship.angle += ANGLE_SPEED * ship.speed
+            elif ship.right_turn:
+                ship.angle -= ANGLE_SPEED * ship.speed
+
+            if arcade.is_point_in_polygon(ship.center_x, ship.center_y, self.ai_inner_rect):
+                ship.left_turn = False
+                ship.right_turn = False
+
+        for ship in self.ship_list:
+            if ship.hp <= 0:
+                self.ship_list.remove(ship)
+                if ship in self.enemy_ship_list:
+                    self.enemy_ship_list.remove(ship)
 
         # Call update to move the sprites
         self.ship_list.on_update(delta_time)
