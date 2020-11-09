@@ -29,6 +29,7 @@ DISTANCE_FROM_START = SCREEN_HEIGHT / 4
 AI_OUTER_DISTANCE = 100
 AI_INNER_DISTANCE = 125
 
+
 class Projectile(arcade.Sprite):
     # Init the class
     def __init__(self, image, scaling, angle):
@@ -53,7 +54,7 @@ class Torpedo(Projectile):
         self.alpha = 63
         self.color = [0, 0, 127]
 
-    def update(self):
+    def update3(self, explosion_list, all_sprites):
         # Update position
         self.center_x += self.change_x
         self.center_y += self.change_y
@@ -68,8 +69,8 @@ class Torpedo(Projectile):
             explosion.center_x = self.center_x
             explosion.center_y = self.center_y
 
-            arcade.get_window().explosion_list.append(explosion)
-            arcade.get_window().all_sprites.append(explosion)
+            explosion_list.append(explosion)
+            all_sprites.append(explosion)
 
         # If it is off the window then remove it
         elif self.right < 0 \
@@ -141,7 +142,7 @@ class Player(Ship):
             self.aim_distance = MIN_AIM_DISTANCE
 
 
-class MyGame(arcade.Window):
+class GameView(arcade.View):
     """
     Main application class.
 
@@ -150,10 +151,8 @@ class MyGame(arcade.Window):
     with your own code. Don't leave 'pass' in this program.
     """
 
-    def __init__(self, width, height, title):
-        super().__init__(width, height, title, resizable=True)
-        self.set_maximum_size(self.width, self.height)
-        self.maximize()
+    def __init__(self):
+        super().__init__()
 
         # If you have sprite lists, you should create them here,
         # and set them to None
@@ -184,7 +183,7 @@ class MyGame(arcade.Window):
         # Set the background colour/color
         arcade.set_background_color(arcade.color.OCEAN_BOAT_BLUE)
 
-    def setup(self):
+    def on_show(self):
         """ Set up the game variables. Call to re-start the game. """
         # Create your sprites and sprite lists here
 
@@ -223,7 +222,6 @@ class MyGame(arcade.Window):
             i += 1
 
     def on_resize(self, width, height):
-        super().on_resize(width, height)
         p1 = (AI_OUTER_DISTANCE, AI_OUTER_DISTANCE)
         p2 = (width - AI_OUTER_DISTANCE, AI_OUTER_DISTANCE)
         p3 = (width - AI_OUTER_DISTANCE, height - AI_OUTER_DISTANCE)
@@ -372,11 +370,16 @@ class MyGame(arcade.Window):
                 self.ship_list.remove(ship)
                 if ship in self.enemy_ship_list:
                     self.enemy_ship_list.remove(ship)
+                    if len(self.enemy_ship_list) == 0:
+                        print(1)
+                else:
+                    print(2)
 
         # Call update to move the sprites
         self.ship_list.on_update(delta_time)
         self.player_sprite.update2()
-        self.torpedo_list.update()
+        for torpedo in self.torpedo_list:
+            torpedo.update3(self.explosion_list, self.all_sprites)
 
     def on_key_press(self, key, key_modifiers):
         """
@@ -430,8 +433,11 @@ class MyGame(arcade.Window):
 
 def main():
     """ Main method """
-    game = MyGame(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
-    game.setup()
+    window = arcade.Window(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE, resizable=True)
+    window.set_maximum_size(window.width, window.height)
+    window.maximize()
+    game_view = GameView()
+    window.show_view(game_view)
     arcade.run()
 
 
