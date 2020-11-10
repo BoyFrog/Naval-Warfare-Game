@@ -47,7 +47,7 @@ class Torpedo(Projectile):
     # Init the class
     def __init__(self, scaling, angle):
         # Init the parent
-        self.speed = 5
+        self.speed = 20
         self.distance = 0
         self.origin = None
         super().__init__("Images/Torpedo.png", scaling, angle)
@@ -84,7 +84,7 @@ class Ship(arcade.Sprite):
     # Init the class
     def __init__(self, image):
         self.speed = 0
-        self.hp = 1000
+        self.hp = 500
         self.identifier = None
         # Init the parent
         super().__init__(image, SCALING)
@@ -180,11 +180,6 @@ class GameView(arcade.View):
         self.ai_outer_rect = None
         self.ai_inner_rect = None
 
-        # Set the background colour/color
-        arcade.set_background_color(arcade.color.OCEAN_BOAT_BLUE)
-
-    def on_show(self):
-        """ Set up the game variables. Call to re-start the game. """
         # Create your sprites and sprite lists here
 
         # Sprite lists
@@ -197,8 +192,8 @@ class GameView(arcade.View):
 
         # Set up the player
         self.player_sprite = Player()
-        self.player_sprite.center_x = SCREEN_WIDTH/2
-        self.player_sprite.center_y = SCREEN_HEIGHT/2
+        self.player_sprite.center_x = SCREEN_WIDTH / 2
+        self.player_sprite.center_y = SCREEN_HEIGHT / 2
         self.player_sprite.identifier = 0
         self.player_list.append(self.player_sprite)
         self.ship_list.append(self.player_sprite)
@@ -220,6 +215,11 @@ class GameView(arcade.View):
             ship.center_y = DISTANCE_FROM_START * math.sin(math.radians(angle)) + SCREEN_HEIGHT / 2
             ship.angle = angle
             i += 1
+
+    def on_show(self):
+        """ Set up the game variables. Call to re-start the game. """
+        # Set the background colour/color
+        arcade.set_background_color(arcade.color.OCEAN_BOAT_BLUE)
 
     def on_resize(self, width, height):
         p1 = (AI_OUTER_DISTANCE, AI_OUTER_DISTANCE)
@@ -367,13 +367,11 @@ class GameView(arcade.View):
 
         for ship in self.ship_list:
             if ship.hp <= 0:
-                self.ship_list.remove(ship)
-                if ship in self.enemy_ship_list:
-                    self.enemy_ship_list.remove(ship)
-                    if len(self.enemy_ship_list) == 0:
-                        print(1)
-                else:
-                    print(2)
+                ship.remove_from_sprite_lists()
+
+                if len(self.enemy_ship_list) == 0 or len(self.player_list) == 0:
+                    game_over_view = GameOverView()
+                    self.window.show_view(game_over_view)
 
         # Call update to move the sprites
         self.ship_list.on_update(delta_time)
@@ -429,6 +427,28 @@ class GameView(arcade.View):
             self.d_pressed = False
         elif key == arcade.key.SPACE:
             self.space_pressed = False
+
+
+class GameOverView(arcade.View):
+    def __init__(self):
+        super().__init__()
+
+    def on_show(self):
+        arcade.set_background_color(arcade.color.OCEAN_BOAT_BLUE)
+
+    def on_draw(self):
+        arcade.start_render()
+        """
+        Draw "Game over" across the screen.
+        """
+        arcade.draw_text("Game Over", self.window.width / 2, self.window.height / 2, arcade.color.WHITE, font_size=100, anchor_x="center")
+        arcade.draw_text("Click to restart", self.window.width / 2, self.window.height / 2 - 100, arcade.color.WHITE, font_size=50, anchor_x="center")
+
+    def on_mouse_press(self, _x, _y, _button, _modifiers):
+        game_view = GameView()
+        self.window.show_view(game_view)
+        game_view.on_resize(self.window.width, self.window.height)
+        arcade.run()
 
 
 def main():
