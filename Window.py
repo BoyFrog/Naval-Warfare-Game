@@ -4,28 +4,32 @@ import math
 import random
 
 # ~~~Defining Constants~~~
+
+# Screen Setup Constants
 SCREEN_WIDTH = 1536
 SCREEN_HEIGHT = 801
 SCREEN_TITLE = "Naval Warfare Game"
-# Sprite Size Scaling
+
+# Scaling Constants
 SCALING = 1
 WEAPON_SCALING = 2
 EXPLOSION_SCALING = 4
-# Ship Speed limit
+
+# Ship Constants
 MAX_SPEED = 1.5
 MIN_SPEED = 0
-# Rate of change of ship speed
 ACCELERATION_RATE = 0.01
-# Rate of change of ship angle
 ANGLE_SPEED = 1
+WEAPON_COOLDOWN_TIME = 1
+
+# Aiming Constants
 AIM_DISTANCE_SPEED = 5
 AIM_ANGLE_SPEED = 2
-WEAPON_COOLDOWN_TIME = 1
 MAX_AIM_DISTANCE = 350
 MIN_AIM_DISTANCE = 75
-# Setup Variables
+
+# Other Constants
 ENEMY_SHIP_NUMBER = 3
-DISTANCE_FROM_START = SCREEN_HEIGHT / 4
 AI_OUTER_DISTANCE = 100
 AI_INNER_DISTANCE = 125
 
@@ -33,6 +37,7 @@ AI_INNER_DISTANCE = 125
 class Projectile(arcade.Sprite):
     # Init the class
     def __init__(self, image, scaling, angle):
+        # Creating New Attributes
         self.start_x = None
         self.start_y = None
         self.distance_to_travel = None
@@ -46,10 +51,11 @@ class Projectile(arcade.Sprite):
 class Torpedo(Projectile):
     # Init the class
     def __init__(self, scaling, angle):
-        # Init the parent
+        # Creating New Attributes
         self.speed = 20
         self.distance = 0
         self.origin = None
+        # Init the parent
         super().__init__("Images/Torpedo.png", scaling, angle)
         self.alpha = 63
         self.color = [0, 0, 127]
@@ -83,13 +89,13 @@ class Torpedo(Projectile):
 class Ship(arcade.Sprite):
     # Init the class
     def __init__(self, image):
+        # Creating New Attributes
         self.speed = 0
         self.hp = 500
         self.identifier = None
+        self.cooldown_time = WEAPON_COOLDOWN_TIME
         # Init the parent
         super().__init__(image, SCALING)
-
-        self.cooldown_time = WEAPON_COOLDOWN_TIME
 
     def on_update(self, delta_time):
         # Update ship's position based on ship's direction and speed
@@ -119,17 +125,19 @@ class Ship(arcade.Sprite):
 
 class AI(Ship):
     def __init__(self, image):
-        super().__init__(image)
+        self.turn_to_angle = None
         self.left_turn = False
         self.right_turn = False
+        # Init the parent
+        super().__init__(image)
 
 
 class Player(Ship):
     # Init the class
     def __init__(self):
-        """ Set up the player """
+        # Creating New Attributes
         self.aim_angle = 0
-        self.aim_distance = 50
+        self.aim_distance = MIN_AIM_DISTANCE
         # Init the parent
         super().__init__("Images/PlayerShip.png")
         self.angle = 90
@@ -146,25 +154,10 @@ class GameView(arcade.View):
     """
     Main application class.
 
-    NOTE: Go ahead and delete the methods you don't need.
-    If you do need a method, delete the 'pass' and replace it
-    with your own code. Don't leave 'pass' in this program.
     """
 
     def __init__(self):
         super().__init__()
-
-        # If you have sprite lists, you should create them here,
-        # and set them to None
-        self.ship_list = None
-        self.all_sprites = None
-        self.torpedo_list = None
-        self.player_list = None
-        self.explosion_list = None
-        self.enemy_ship_list = None
-
-        # Set up the player info
-        self.player_sprite = None
 
         # Track the current state of what key is pressed
         self.left_pressed = False
@@ -180,15 +173,14 @@ class GameView(arcade.View):
         self.ai_outer_rect = None
         self.ai_inner_rect = None
 
-        # Create your sprites and sprite lists here
-
-        # Sprite lists
+        # Create Sprite lists
         self.ship_list = arcade.SpriteList()
         self.player_list = arcade.SpriteList()
         self.torpedo_list = arcade.SpriteList()
         self.explosion_list = arcade.SpriteList()
         self.all_sprites = arcade.SpriteList()
         self.enemy_ship_list = arcade.SpriteList()
+        self.check_list = arcade.SpriteList()
 
         # Set up the player
         self.player_sprite = Player()
@@ -199,6 +191,7 @@ class GameView(arcade.View):
         self.ship_list.append(self.player_sprite)
         self.all_sprites.append(self.player_sprite)
 
+        # Set up the enemy ships
         for i in range(ENEMY_SHIP_NUMBER):
             ship = AI("Images/EnemyShip" + str((i % 3) + 1) + ".png")
 
@@ -208,11 +201,12 @@ class GameView(arcade.View):
             self.ship_list.append(ship)
             self.enemy_ship_list.append(ship)
 
+        # setup the starting position of the ships
         i = 0
         for ship in self.ship_list:
             angle = i * 360 / len(self.ship_list)
-            ship.center_x = DISTANCE_FROM_START * math.cos(math.radians(angle)) + SCREEN_WIDTH / 2
-            ship.center_y = DISTANCE_FROM_START * math.sin(math.radians(angle)) + SCREEN_HEIGHT / 2
+            ship.center_x = self.window.height / 4 * math.cos(math.radians(angle)) + self.window.width / 2
+            ship.center_y = self.window.height / 4 * math.sin(math.radians(angle)) + self.window.height / 2
             ship.angle = angle
             i += 1
 
@@ -325,8 +319,10 @@ class GameView(arcade.View):
         for torpedo in self.torpedo_list:
             hit_list = arcade.check_for_collision_with_list(torpedo, self.all_sprites)
 
-            if self.ship_list[torpedo.origin] in hit_list:
-                hit_list.remove(self.ship_list[torpedo.origin])
+            for ship in self.ship_list:
+                if ship in hit_list and ship.identifier == torpedo.origin:
+                    hit_list.remove(ship)
+                    break
 
             # If the torpedo did hit something, explode it
             if len(hit_list) > 0:
@@ -348,22 +344,71 @@ class GameView(arcade.View):
             if ship.speed < MAX_SPEED:
                 ship.speed += ACCELERATION_RATE
 
-            if not arcade.is_point_in_polygon(ship.center_x, ship.center_y, self.ai_outer_rect)\
-                    and not ship.left_turn \
-                    and not ship.right_turn:
-                if (ship.angle // 45) % 2 == 0:
-                    ship.left_turn = True
-                else:
-                    ship.right_turn = True
+            if not ship.left_turn and not ship.right_turn:
+                in_rect = arcade.is_point_in_polygon(ship.center_x, ship.center_y, self.ai_outer_rect)
 
-            if ship.left_turn:
-                ship.angle += ANGLE_SPEED * ship.speed
-            elif ship.right_turn:
-                ship.angle -= ANGLE_SPEED * ship.speed
+                if not in_rect:
+                    if (ship.angle // 45) % 2 == 0:
+                        ship.left_turn = True
+                    else:
+                        ship.right_turn = True
 
-            if arcade.is_point_in_polygon(ship.center_x, ship.center_y, self.ai_inner_rect):
-                ship.left_turn = False
-                ship.right_turn = False
+                elif in_rect:
+                    # Have to remove the ship from the sprite list being checked
+                    # Otherwise it will return itself as the closest ship
+                    self.ship_list.remove(ship)
+                    closest_sprite = arcade.get_closest_sprite(ship, self.ship_list)
+                    self.ship_list.append(ship)
+
+                    # If there is another ship nearby then turn
+                    if closest_sprite[1] < MAX_AIM_DISTANCE / 2:
+                        ship.turn_to_angle = None
+                        if 0 <= ship.angle % 360 < 180:
+                            if closest_sprite[0].center_x >= ship.center_x:
+                                ship.angle += ANGLE_SPEED * ship.speed
+
+                            elif closest_sprite[0].center_x < ship.center_x:
+                                ship.angle -= ANGLE_SPEED * ship.speed
+                        else:
+                            if closest_sprite[0].center_x < ship.center_x:
+                                ship.angle += ANGLE_SPEED * ship.speed
+
+                            elif closest_sprite[0].center_x >= ship.center_x:
+                                ship.angle -= ANGLE_SPEED * ship.speed
+
+                    elif closest_sprite[1] > MAX_AIM_DISTANCE and ship.turn_to_angle is None:
+                        x = ship.center_x - closest_sprite[0].center_x
+                        y = ship.center_y - closest_sprite[0].center_y
+                        ship.turn_to_angle = math.degrees(math.atan2(y, x)) / 2
+                        print(ship.turn_to_angle)
+
+                    if ship.turn_to_angle is not None:
+                        if ship.turn_to_angle > 0:
+                            ship.angle += ANGLE_SPEED * ship.speed
+                            ship.turn_to_angle -= ANGLE_SPEED * ship.speed
+                            if ship.turn_to_angle < 0:
+                                ship.turn_to_angle = None
+
+                        elif ship.turn_to_angle < 0:
+                            ship.angle -= ANGLE_SPEED * ship.speed
+                            ship.turn_to_angle += ANGLE_SPEED * ship.speed
+                            if ship.turn_to_angle > 0:
+                                ship.turn_to_angle = None
+
+                        else:
+                            ship.turn_to_angle = None
+
+            else:
+                ship.turn_to_angle = None
+
+                if ship.left_turn:
+                    ship.angle += ANGLE_SPEED * ship.speed
+                elif ship.right_turn:
+                    ship.angle -= ANGLE_SPEED * ship.speed
+
+                if arcade.is_point_in_polygon(ship.center_x, ship.center_y, self.ai_inner_rect):
+                    ship.left_turn = False
+                    ship.right_turn = False
 
         for ship in self.ship_list:
             if ship.hp <= 0:
