@@ -90,6 +90,7 @@ class Ship(arcade.Sprite):
         # Creating New Attributes
         self.speed = 0
         self.hp = 500
+        self.max_hp = self.hp
         self.identifier = None
         self.cooldown_time = WEAPON_COOLDOWN_TIME
         # Init the parent
@@ -121,6 +122,26 @@ class Ship(arcade.Sprite):
             self.speed = MAX_SPEED
         elif self.speed < MIN_SPEED:
             self.speed = MIN_SPEED
+
+    def draw_health(self):
+        width = 100
+        height = 10
+
+        percent = self.hp / self.max_hp
+        if self.hp < 0:
+            fill = 0
+        else:
+            fill = (width * percent)
+
+        left = int(self.center_x - width // 2)
+        middle = int(left + fill)
+        right = int(left + width)
+
+        bottom = self.center_y + self.width / 2
+        top = bottom + height
+
+        arcade.draw_lrtb_rectangle_filled(middle, right, top, bottom, (255, 0, 0))  # Red
+        arcade.draw_lrtb_rectangle_filled(left, middle, top, bottom, (0, 128, 0))  # Green
 
 
 class AI(Ship):
@@ -253,6 +274,10 @@ class GameView(arcade.View):
         # Draw all the sprites.
         self.torpedo_list.draw()
         self.explosion_list.draw()
+
+        for ship in self.ship_list:
+            ship.draw_health()
+
         self.ship_list.draw()
 
     def on_update(self, delta_time):
