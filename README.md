@@ -4,7 +4,8 @@ School Project
 
 ## How To Run
 This program requires the installation of the arcade library.\
-To run the program, Python 3.8 will work. Python 3.6 will not work and Python 3.7 may work.
+To run the program, a version of python higher than Python 3.6 is required due to dataclasses.
+If running on Python 3.6 please manually install https://pypi.org/project/dataclasses/
 
 
 ## Credits

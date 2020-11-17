@@ -6,8 +6,6 @@ import random
 # ~~~Defining Constants~~~
 
 # Screen Setup Constants
-SCREEN_WIDTH = 1536
-SCREEN_HEIGHT = 801
 SCREEN_TITLE = "Naval Warfare Game"
 
 # Scaling Constants
@@ -60,7 +58,7 @@ class Torpedo(Projectile):
         self.alpha = 63
         self.color = [0, 0, 127]
 
-    def update3(self, explosion_list, all_sprites):
+    def update_torpedo(self, explosion_list, all_collidable_sprites):
         # Update position
         self.center_x += self.change_x
         self.center_y += self.change_y
@@ -76,7 +74,7 @@ class Torpedo(Projectile):
             explosion.center_y = self.center_y
 
             explosion_list.append(explosion)
-            all_sprites.append(explosion)
+            all_collidable_sprites.append(explosion)
 
         # If it is off the window then remove it
         elif self.right < 0 \
@@ -102,6 +100,8 @@ class Ship(arcade.Sprite):
         self.center_x += self.speed * math.cos(math.radians(self.angle))
         self.center_y += self.speed * math.sin(math.radians(self.angle))
 
+        # Increase the cooldown_time
+        # When it reaches a certain value then they can fire
         self.cooldown_time += delta_time
 
         # Wall Collision
@@ -178,44 +178,49 @@ class GameView(arcade.View):
         self.player_list = arcade.SpriteList()
         self.torpedo_list = arcade.SpriteList()
         self.explosion_list = arcade.SpriteList()
-        self.all_sprites = arcade.SpriteList()
+        self.all_collidable_sprites = arcade.SpriteList()
         self.enemy_ship_list = arcade.SpriteList()
-        self.check_list = arcade.SpriteList()
 
         # Set up the player
         self.player_sprite = Player()
-        self.player_sprite.center_x = SCREEN_WIDTH / 2
-        self.player_sprite.center_y = SCREEN_HEIGHT / 2
         self.player_sprite.identifier = 0
         self.player_list.append(self.player_sprite)
         self.ship_list.append(self.player_sprite)
-        self.all_sprites.append(self.player_sprite)
+        self.all_collidable_sprites.append(self.player_sprite)
 
         # Set up the enemy ships
         for i in range(ENEMY_SHIP_NUMBER):
+            # Create ship with an image based on the iterated value
             ship = AI("Images/EnemyShip" + str((i % 3) + 1) + ".png")
-
+            # Assign their identifier based on the iterated value
             ship.identifier = i + 1
 
-            self.all_sprites.append(ship)
+            # Assign them to the appropriate lists
+            self.all_collidable_sprites.append(ship)
             self.ship_list.append(ship)
             self.enemy_ship_list.append(ship)
 
         # setup the starting position of the ships
         i = 0
         for ship in self.ship_list:
+            # Arrange the ships evenly on points of a circle originating at the window's midpoint
             angle = i * 360 / len(self.ship_list)
+            ship.angle = angle
             ship.center_x = self.window.height / 4 * math.cos(math.radians(angle)) + self.window.width / 2
             ship.center_y = self.window.height / 4 * math.sin(math.radians(angle)) + self.window.height / 2
-            ship.angle = angle
             i += 1
 
     def on_show(self):
-        """ Set up the game variables. Call to re-start the game. """
+        # Code to run when the view is shown
+
         # Set the background colour/color
         arcade.set_background_color(arcade.color.OCEAN_BOAT_BLUE)
 
     def on_resize(self, width, height):
+        # When the window is resized,
+        # change the size of the rectangles required for AI Ships wall avoidance code
+
+        # Create the rectangles
         p1 = (AI_OUTER_DISTANCE, AI_OUTER_DISTANCE)
         p2 = (width - AI_OUTER_DISTANCE, AI_OUTER_DISTANCE)
         p3 = (width - AI_OUTER_DISTANCE, height - AI_OUTER_DISTANCE)
@@ -229,9 +234,7 @@ class GameView(arcade.View):
         self.ai_inner_rect = [p1, p2, p3, p4]
 
     def on_draw(self):
-        """
-        Render the screen.
-        """
+        # Render the screen and draw shapes and sprites on it
 
         # This command should happen before we start drawing. It will clear
         # the screen to the background color, and erase what we drew last frame.
@@ -301,7 +304,7 @@ class GameView(arcade.View):
                 torpedo.origin = self.player_sprite.identifier
 
                 self.torpedo_list.append(torpedo)
-                self.all_sprites.append(torpedo)
+                self.all_collidable_sprites.append(torpedo)
 
         # Explosions
         for explosion in self.explosion_list:
@@ -317,7 +320,7 @@ class GameView(arcade.View):
 
         # Torpedoes
         for torpedo in self.torpedo_list:
-            hit_list = arcade.check_for_collision_with_list(torpedo, self.all_sprites)
+            hit_list = arcade.check_for_collision_with_list(torpedo, self.all_collidable_sprites)
 
             for ship in self.ship_list:
                 if ship in hit_list and ship.identifier == torpedo.origin:
@@ -333,7 +336,7 @@ class GameView(arcade.View):
                 explosion.center_y = torpedo.center_y
 
                 self.explosion_list.append(explosion)
-                self.all_sprites.append(explosion)
+                self.all_collidable_sprites.append(explosion)
 
             # If a ship was hit, decrease it's hp
             for sprite in hit_list:
@@ -376,11 +379,10 @@ class GameView(arcade.View):
                             elif closest_sprite[0].center_x >= ship.center_x:
                                 ship.angle -= ANGLE_SPEED * ship.speed
 
-                    elif closest_sprite[1] > MAX_AIM_DISTANCE and ship.turn_to_angle is None:
+                    elif closest_sprite[1] > MAX_AIM_DISTANCE:
                         x = ship.center_x - closest_sprite[0].center_x
                         y = ship.center_y - closest_sprite[0].center_y
                         ship.turn_to_angle = math.degrees(math.atan2(y, x)) / 2
-                        print(ship.turn_to_angle)
 
                     if ship.turn_to_angle is not None:
                         if ship.turn_to_angle > 0:
@@ -398,7 +400,7 @@ class GameView(arcade.View):
                         else:
                             ship.turn_to_angle = None
 
-            else:
+            if ship.left_turn or ship.right_turn:
                 ship.turn_to_angle = None
 
                 if ship.left_turn:
@@ -418,11 +420,11 @@ class GameView(arcade.View):
                     game_over_view = GameOverView()
                     self.window.show_view(game_over_view)
 
-        # Call update to move the sprites
+        # Update these sprites using the update function in their class
         self.ship_list.on_update(delta_time)
         self.player_sprite.update2()
         for torpedo in self.torpedo_list:
-            torpedo.update3(self.explosion_list, self.all_sprites)
+            torpedo.update_torpedo(self.explosion_list, self.all_collidable_sprites)
 
     def on_key_press(self, key, key_modifiers):
         """
@@ -490,6 +492,7 @@ class GameOverView(arcade.View):
         arcade.draw_text("Click to restart", self.window.width / 2, self.window.height / 2 - 100, arcade.color.WHITE, font_size=50, anchor_x="center")
 
     def on_mouse_press(self, _x, _y, _button, _modifiers):
+        print(self.window.width, " - ", self.window.height)
         game_view = GameView()
         self.window.show_view(game_view)
         game_view.on_resize(self.window.width, self.window.height)
@@ -498,9 +501,15 @@ class GameOverView(arcade.View):
 
 def main():
     """ Main method """
-    window = arcade.Window(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE, resizable=True)
-    window.set_maximum_size(window.width, window.height)
+    # Set size of window
+    # This is not a perfect fitting of the display due to any task bars and window heading
+    # Have to do this to get a somewhat accurate window size to set up the ships more towards the middle of the window
+    size = arcade.get_display_size(0)
+    window = arcade.Window(size[0], size[1], SCREEN_TITLE, resizable=True)
+    # Put the window into focus
     window.maximize()
+
+    # Create the GameView then show it
     game_view = GameView()
     window.show_view(game_view)
     arcade.run()
