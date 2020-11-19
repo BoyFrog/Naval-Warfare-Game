@@ -173,7 +173,6 @@ class Player(Ship):
 class GameView(arcade.View):
     """
     Main application class.
-
     """
 
     def __init__(self):
@@ -195,7 +194,6 @@ class GameView(arcade.View):
 
         # Create Sprite lists
         self.ship_list = arcade.SpriteList()
-        self.player_list = arcade.SpriteList()
         self.torpedo_list = arcade.SpriteList()
         self.explosion_list = arcade.SpriteList()
         self.all_collidable_sprites = arcade.SpriteList()
@@ -204,13 +202,8 @@ class GameView(arcade.View):
         # Set up the player
         self.player_sprite = Player()
         self.player_sprite.identifier = 0
-        self.player_list.append(self.player_sprite)
         self.ship_list.append(self.player_sprite)
         self.all_collidable_sprites.append(self.player_sprite)
-
-        # TESTING PURPOSES
-        self.player_sprite.hp = 10000
-        self.player_sprite.max_hp = 10000
 
         # Set up the enemy ships
         for i in range(ENEMY_SHIP_NUMBER):
@@ -411,7 +404,6 @@ class GameView(arcade.View):
 
                         ship.cooldown_time = 0
                         angle = math.degrees(math.atan2(y, x))
-                        print(angle)
 
                         torpedo = Torpedo(WEAPON_SCALING, angle)
 
