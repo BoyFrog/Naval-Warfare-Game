@@ -18,7 +18,7 @@ MAX_SPEED = 1.5
 MIN_SPEED = 0
 ACCELERATION_RATE = 0.01
 ANGLE_SPEED = 1
-WEAPON_COOLDOWN_TIME = 1
+WEAPON_COOLDOWN_TIME = 5
 HP_BAR_WIDTH = 100
 HP_BAR_HEIGHT = 10
 
@@ -32,6 +32,7 @@ MIN_AIM_DISTANCE = 75
 ENEMY_SHIP_NUMBER = 3
 AI_OUTER_DISTANCE = 100
 AI_INNER_DISTANCE = 125
+TORPEDO_SPEED = 5
 
 
 class Projectile(arcade.Sprite):
@@ -52,8 +53,8 @@ class Torpedo(Projectile):
     # Init the class
     def __init__(self, scaling, angle):
         # Creating New Attributes
-        self.speed = 20
-        self.distance = 0
+        self.speed = TORPEDO_SPEED
+        self.distance_traveled = 0
         self.origin = None
         # Init the parent
         super().__init__("Images/Torpedo.png", scaling, angle)
@@ -66,9 +67,9 @@ class Torpedo(Projectile):
         self.center_y += self.change_y
 
         # If torpedo has reached it's endpoint then make an explosion
-        self.distance = ((self.center_x - self.start_x) ** 2 + (self.center_y - self.start_y) ** 2) ** 0.5
+        self.distance_traveled = ((self.center_x - self.start_x) ** 2 + (self.center_y - self.start_y) ** 2) ** 0.5
 
-        if self.distance >= self.distance_to_travel:
+        if self.distance_traveled >= self.distance_to_travel:
             self.remove_from_sprite_lists()
 
             explosion = arcade.Sprite("Images/Explosion.png", EXPLOSION_SCALING)
@@ -94,7 +95,7 @@ class Ship(arcade.Sprite):
         self.hp = 500
         self.max_hp = self.hp
         self.identifier = None
-        self.cooldown_time = WEAPON_COOLDOWN_TIME
+        self.cooldown_time = 0
         # Init the parent
         super().__init__(image, SCALING)
 
@@ -206,6 +207,10 @@ class GameView(arcade.View):
         self.player_list.append(self.player_sprite)
         self.ship_list.append(self.player_sprite)
         self.all_collidable_sprites.append(self.player_sprite)
+
+        # TESTING PURPOSES
+        self.player_sprite.hp = 10000
+        self.player_sprite.max_hp = 10000
 
         # Set up the enemy ships
         for i in range(ENEMY_SHIP_NUMBER):
@@ -367,6 +372,59 @@ class GameView(arcade.View):
                     sprite.hp -= 100
 
         for ship in self.enemy_ship_list:
+            # Check for the closest ship
+            # Have to remove this ship from the sprite list being checked
+            # Otherwise it will return itself as the closest ship
+            self.ship_list.remove(ship)
+            closest_sprite = arcade.get_closest_sprite(ship, self.ship_list)
+            self.ship_list.append(ship)
+
+            # Determining if the ship can and should shoot
+            if closest_sprite[1] <= MAX_AIM_DISTANCE:
+                if ship.cooldown_time >= WEAPON_COOLDOWN_TIME:
+                    # Determining where the ship should shoot
+                    target = closest_sprite[0]
+                    x_diff = target.center_x - ship.center_x
+                    y_diff = target.center_y - ship.center_y
+                    
+                    time_taken = closest_sprite[1] / (TORPEDO_SPEED * 60)
+
+                    dx = target.speed * math.cos(math.radians(target.angle)) * time_taken
+                    dy = target.speed * math.sin(math.radians(target.angle)) * time_taken
+
+                    distance_to_travel = ((x_diff + dx) ** 2 + (y_diff + dy) ** 2) ** 0.5
+
+                    new_time_taken = distance_to_travel / (TORPEDO_SPEED * 60)
+
+                    ratio = new_time_taken / time_taken
+
+                    dx = dx * ratio
+                    dy = dy * ratio
+                    x = x_diff + dx
+                    y = y_diff + dy
+
+                    distance_to_travel = ((x ** 2) + (y ** 2)) ** 0.5
+
+                    if distance_to_travel <= MAX_AIM_DISTANCE:
+                        if distance_to_travel < MIN_AIM_DISTANCE:
+                            distance_to_travel = MIN_AIM_DISTANCE
+
+                        ship.cooldown_time = 0
+                        angle = math.degrees(math.atan2(y, x))
+                        print(angle)
+
+                        torpedo = Torpedo(WEAPON_SCALING, angle)
+
+                        torpedo.center_x = ship.center_x
+                        torpedo.center_y = ship.center_y
+                        torpedo.start_x = ship.center_x
+                        torpedo.start_y = ship.center_y
+                        torpedo.distance_to_travel = distance_to_travel
+                        torpedo.origin = ship.identifier
+
+                        self.torpedo_list.append(torpedo)
+                        self.all_collidable_sprites.append(torpedo)
+
             # If the ai ship is below it's max speed then accelerate it
             if ship.speed < MAX_SPEED:
                 ship.speed += ACCELERATION_RATE
@@ -402,13 +460,6 @@ class GameView(arcade.View):
 
                 # If it is in the rect then do this code
                 elif in_rect:
-                    # Check for the closest ship
-                    # Have to remove this ship from the sprite list being checked
-                    # Otherwise it will return itself as the closest ship
-                    self.ship_list.remove(ship)
-                    closest_sprite = arcade.get_closest_sprite(ship, self.ship_list)
-                    self.ship_list.append(ship)
-
                     # Determine x and y difference between this ship and closest ship
                     x = closest_sprite[0].center_x - ship.center_x
                     y = closest_sprite[0].center_y - ship.center_y
