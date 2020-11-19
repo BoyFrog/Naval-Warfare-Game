@@ -160,7 +160,6 @@ class Player(Ship):
         self.aim_distance = MIN_AIM_DISTANCE
         # Init the parent
         super().__init__("Images/PlayerShip.png")
-        self.angle = 90
 
     def update2(self):
         # aim_distance limits
@@ -410,30 +409,33 @@ class GameView(arcade.View):
                     closest_sprite = arcade.get_closest_sprite(ship, self.ship_list)
                     self.ship_list.append(ship)
 
-                    # If there is another ship nearby then turn
+                    # Determine x and y difference between this ship and closest ship
+                    x = closest_sprite[0].center_x - ship.center_x
+                    y = closest_sprite[0].center_y - ship.center_y
+
+                    # Determine the atan2 angle of the closest ship relative to this ship
+                    # Create modified value of this ship's angle to be used
+                    arctan_angle = math.degrees(math.atan2(y, x))
+                    ship_angle = abs(ship.angle % 360)
+
+                    # If there is another ship nearby
+                    # Then turn away from it
                     if closest_sprite[1] < MAX_AIM_DISTANCE / 2:
-                        if 0 <= ship.angle % 360 < 180:
-                            if closest_sprite[0].center_x >= ship.center_x:
+                        if arctan_angle >= 0:
+                            if arctan_angle < ship_angle < arctan_angle + 180:
                                 ship.angle += ANGLE_SPEED * ship.speed
-
-                            elif closest_sprite[0].center_x < ship.center_x:
+                            else:
                                 ship.angle -= ANGLE_SPEED * ship.speed
+
                         else:
-                            if closest_sprite[0].center_x < ship.center_x:
-                                ship.angle += ANGLE_SPEED * ship.speed
-
-                            elif closest_sprite[0].center_x >= ship.center_x:
+                            if arctan_angle + 180 < ship_angle < arctan_angle + 360:
                                 ship.angle -= ANGLE_SPEED * ship.speed
+                            else:
+                                ship.angle += ANGLE_SPEED * ship.speed
 
                     # If no ships are in it's aim distance
-                    # Then set an angle amount to turn towards the nearest ship
+                    # Then turn towards the nearest ship
                     elif closest_sprite[1] > MAX_AIM_DISTANCE:
-                        x = closest_sprite[0].center_x - ship.center_x
-                        y = closest_sprite[0].center_y - ship.center_y
-
-                        arctan_angle = math.degrees(math.atan2(y, x))
-                        ship_angle = abs(ship.angle % 360)
-
                         if arctan_angle >= 0:
                             if arctan_angle < ship_angle < arctan_angle + 180:
                                 ship.angle -= ANGLE_SPEED * ship.speed
