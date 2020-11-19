@@ -19,6 +19,8 @@ MIN_SPEED = 0
 ACCELERATION_RATE = 0.01
 ANGLE_SPEED = 1
 WEAPON_COOLDOWN_TIME = 1
+HP_BAR_WIDTH = 100
+HP_BAR_HEIGHT = 10
 
 # Aiming Constants
 AIM_DISTANCE_SPEED = 5
@@ -96,7 +98,7 @@ class Ship(arcade.Sprite):
         # Init the parent
         super().__init__(image, SCALING)
 
-    def on_update(self, delta_time):
+    def on_update(self, delta_time: float = 1/60):
         # Update ship's position based on ship's direction and speed
         self.center_x += self.speed * math.cos(math.radians(self.angle))
         self.center_y += self.speed * math.sin(math.radians(self.angle))
@@ -124,21 +126,19 @@ class Ship(arcade.Sprite):
             self.speed = MIN_SPEED
 
     def draw_health(self):
-        width = 100
-        height = 10
-
         percent = self.hp / self.max_hp
+
         if self.hp < 0:
             fill = 0
         else:
-            fill = (width * percent)
+            fill = HP_BAR_WIDTH * percent
 
-        left = int(self.center_x - width // 2)
+        left = int(self.center_x - HP_BAR_WIDTH // 2)
         middle = int(left + fill)
-        right = int(left + width)
+        right = left + HP_BAR_WIDTH
 
         bottom = self.center_y + self.width / 2
-        top = bottom + height
+        top = bottom + HP_BAR_HEIGHT
 
         arcade.draw_lrtb_rectangle_filled(middle, right, top, bottom, (255, 0, 0))  # Red
         arcade.draw_lrtb_rectangle_filled(left, middle, top, bottom, (0, 128, 0))  # Green
@@ -146,7 +146,6 @@ class Ship(arcade.Sprite):
 
 class AI(Ship):
     def __init__(self, image):
-        self.turn_to_angle = None
         self.left_turn = False
         self.right_turn = False
         # Init the parent
@@ -369,20 +368,43 @@ class GameView(arcade.View):
                     sprite.hp -= 100
 
         for ship in self.enemy_ship_list:
+            # If the ai ship is below it's max speed then accelerate it
             if ship.speed < MAX_SPEED:
                 ship.speed += ACCELERATION_RATE
 
-            if not ship.left_turn and not ship.right_turn:
+            # If one of these variables is true then the ai ship is close to the edge
+            # Edge avoidance takes priority over other turning so it is done first
+            if ship.left_turn or ship.right_turn:
+                # Depending on which variable is true, make it turn that way
+                if ship.left_turn:
+                    ship.angle += ANGLE_SPEED * ship.speed
+                elif ship.right_turn:
+                    ship.angle -= ANGLE_SPEED * ship.speed
+
+                # If the ai ship is inside this rect, then it is not by the edge anymore
+                # So stop making it turn away from the edge
+                if arcade.is_point_in_polygon(ship.center_x, ship.center_y, self.ai_inner_rect):
+                    ship.left_turn = False
+                    ship.right_turn = False
+
+            # If the ai ship is not turning away from the edge then check this code
+            else:
+                # Check if the ai ship is too close to the edge
                 in_rect = arcade.is_point_in_polygon(ship.center_x, ship.center_y, self.ai_outer_rect)
 
+                # If the ship is not in the rect / too close to the edge
+                # Then depending on the section it is in
+                # Make it turn left or right
                 if not in_rect:
                     if (ship.angle // 45) % 2 == 0:
                         ship.left_turn = True
                     else:
                         ship.right_turn = True
 
+                # If it is in the rect then do this code
                 elif in_rect:
-                    # Have to remove the ship from the sprite list being checked
+                    # Check for the closest ship
+                    # Have to remove this ship from the sprite list being checked
                     # Otherwise it will return itself as the closest ship
                     self.ship_list.remove(ship)
                     closest_sprite = arcade.get_closest_sprite(ship, self.ship_list)
@@ -390,7 +412,6 @@ class GameView(arcade.View):
 
                     # If there is another ship nearby then turn
                     if closest_sprite[1] < MAX_AIM_DISTANCE / 2:
-                        ship.turn_to_angle = None
                         if 0 <= ship.angle % 360 < 180:
                             if closest_sprite[0].center_x >= ship.center_x:
                                 ship.angle += ANGLE_SPEED * ship.speed
@@ -404,43 +425,34 @@ class GameView(arcade.View):
                             elif closest_sprite[0].center_x >= ship.center_x:
                                 ship.angle -= ANGLE_SPEED * ship.speed
 
+                    # If no ships are in it's aim distance
+                    # Then set an angle amount to turn towards the nearest ship
                     elif closest_sprite[1] > MAX_AIM_DISTANCE:
-                        x = ship.center_x - closest_sprite[0].center_x
-                        y = ship.center_y - closest_sprite[0].center_y
-                        ship.turn_to_angle = math.degrees(math.atan2(y, x)) / 2
+                        x = closest_sprite[0].center_x - ship.center_x
+                        y = closest_sprite[0].center_y - ship.center_y
 
-                    if ship.turn_to_angle is not None:
-                        if ship.turn_to_angle > 0:
-                            ship.angle += ANGLE_SPEED * ship.speed
-                            ship.turn_to_angle -= ANGLE_SPEED * ship.speed
-                            if ship.turn_to_angle < 0:
-                                ship.turn_to_angle = None
+                        arctan_angle = math.degrees(math.atan2(y, x))
+                        ship_angle = abs(ship.angle % 360)
 
-                        elif ship.turn_to_angle < 0:
-                            ship.angle -= ANGLE_SPEED * ship.speed
-                            ship.turn_to_angle += ANGLE_SPEED * ship.speed
-                            if ship.turn_to_angle > 0:
-                                ship.turn_to_angle = None
+                        if arctan_angle >= 0:
+                            if arctan_angle < ship_angle < arctan_angle + 180:
+                                ship.angle -= ANGLE_SPEED * ship.speed
+                            else:
+                                ship.angle += ANGLE_SPEED * ship.speed
 
                         else:
-                            ship.turn_to_angle = None
+                            if arctan_angle + 180 < ship_angle < arctan_angle + 360:
+                                ship.angle += ANGLE_SPEED * ship.speed
+                            else:
+                                ship.angle -= ANGLE_SPEED * ship.speed
 
-            if ship.left_turn or ship.right_turn:
-                ship.turn_to_angle = None
-
-                if ship.left_turn:
-                    ship.angle += ANGLE_SPEED * ship.speed
-                elif ship.right_turn:
-                    ship.angle -= ANGLE_SPEED * ship.speed
-
-                if arcade.is_point_in_polygon(ship.center_x, ship.center_y, self.ai_inner_rect):
-                    ship.left_turn = False
-                    ship.right_turn = False
-
+        # Check if a ship is dead and if so remove it
         for ship in self.ship_list:
             if ship.hp <= 0:
                 ship.remove_from_sprite_lists()
 
+                # If the player is dead or all the enemy ships are dead
+                # Then go to the GameOverView
                 if len(self.enemy_ship_list) == 0 or len(self.player_list) == 0:
                     game_over_view = GameOverView()
                     self.window.show_view(game_over_view)
@@ -513,11 +525,12 @@ class GameOverView(arcade.View):
         """
         Draw "Game over" across the screen.
         """
-        arcade.draw_text("Game Over", self.window.width / 2, self.window.height / 2, arcade.color.WHITE, font_size=100, anchor_x="center")
-        arcade.draw_text("Click to restart", self.window.width / 2, self.window.height / 2 - 100, arcade.color.WHITE, font_size=50, anchor_x="center")
+        arcade.draw_text("Game Over", self.window.width / 2, self.window.height / 2, arcade.color.WHITE,
+                         font_size=100, anchor_x="center")
+        arcade.draw_text("Click to restart", self.window.width / 2, self.window.height / 2 - 100, arcade.color.WHITE,
+                         font_size=50, anchor_x="center")
 
     def on_mouse_press(self, _x, _y, _button, _modifiers):
-        print(self.window.width, " - ", self.window.height)
         game_view = GameView()
         self.window.show_view(game_view)
         game_view.on_resize(self.window.width, self.window.height)
