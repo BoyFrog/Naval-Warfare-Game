@@ -1,6 +1,7 @@
 # Import key libraries
 import arcade
 import math
+from pyglet.gl import GL_NEAREST
 import random
 
 # ~~~Defining Constants~~~
@@ -193,6 +194,7 @@ class GameView(arcade.View):
         self.ai_inner_rect = None
 
         # Create Sprite lists
+        self.player_list = arcade.SpriteList()
         self.ship_list = arcade.SpriteList()
         self.torpedo_list = arcade.SpriteList()
         self.explosion_list = arcade.SpriteList()
@@ -202,6 +204,7 @@ class GameView(arcade.View):
         # Set up the player
         self.player_sprite = Player()
         self.player_sprite.identifier = 0
+        self.player_list.append(self.player_sprite)
         self.ship_list.append(self.player_sprite)
         self.all_collidable_sprites.append(self.player_sprite)
 
@@ -268,13 +271,13 @@ class GameView(arcade.View):
 
         # Call draw() on all your sprite lists below
         # Draw all the sprites.
-        self.torpedo_list.draw()
-        self.explosion_list.draw()
+        self.torpedo_list.draw(filter=GL_NEAREST)
+        self.explosion_list.draw(filter=GL_NEAREST)
 
         for ship in self.ship_list:
             ship.draw_health()
 
-        self.ship_list.draw()
+        self.ship_list.draw(filter=GL_NEAREST)
 
     def on_update(self, delta_time):
         """
