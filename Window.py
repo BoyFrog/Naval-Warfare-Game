@@ -13,6 +13,7 @@ SCREEN_TITLE = "Naval Warfare Game"
 SCALING = 1
 WEAPON_SCALING = 2
 EXPLOSION_SCALING = 4
+SIGN_SCALING = 8
 
 # Ship Constants
 MAX_SPEED = 1.5
@@ -33,7 +34,7 @@ MIN_AIM_DISTANCE = 75
 ENEMY_SHIP_NUMBER = 3
 AI_OUTER_DISTANCE = 100
 AI_INNER_DISTANCE = 125
-TORPEDO_SPEED = 5
+TORPEDO_SPEED = 4
 
 
 class Projectile(arcade.Sprite):
@@ -93,7 +94,7 @@ class Ship(arcade.Sprite):
     def __init__(self, image):
         # Creating New Attributes
         self.speed = 0
-        self.hp = 500
+        self.hp = 1000
         self.max_hp = self.hp
         self.identifier = None
         self.cooldown_time = 0
@@ -169,6 +170,53 @@ class Player(Ship):
             self.aim_distance = MAX_AIM_DISTANCE
         elif self.aim_distance < MIN_AIM_DISTANCE:
             self.aim_distance = MIN_AIM_DISTANCE
+
+
+class BufferView(arcade.View):
+    def __init__(self):
+        super().__init__()
+        self.time = 0
+
+    def on_show(self):
+        arcade.set_background_color(arcade.color.OCEAN_BOAT_BLUE)
+
+    def on_update(self, delta_time: float):
+        self.time += delta_time
+        if self.time > 0.5:
+            menu_view = MenuView()
+            self.window.show_view(menu_view)
+
+
+    def on_draw(self):
+        arcade.start_render()
+
+
+class MenuView(arcade.View):
+    def __init__(self):
+        super().__init__()
+        self.sign_list = arcade.SpriteList()
+        self.sign = arcade.Sprite("Images/Sign.png", SIGN_SCALING)
+        self.sign_list.append(self.sign)
+
+    def on_show(self):
+        arcade.set_background_color(arcade.color.OCEAN_BOAT_BLUE)
+
+    def on_draw(self):
+        arcade.start_render()
+        """
+        Draw the start text and sign on the screen.
+        """
+        self.sign.center_x = self.window.width / 2
+        self.sign.center_y = (self.window.height / 2) + 50
+        self.sign_list.draw(filter=GL_NEAREST)
+
+        arcade.draw_text("Click to start", self.window.width / 2, self.window.height / 2 - 300, arcade.color.WHITE,
+                         font_size=35, anchor_x="center")
+
+    def on_mouse_press(self, _x, _y, _button, _modifiers):
+        game_view = GameView()
+        self.window.show_view(game_view)
+        game_view.on_resize(self.window.width, self.window.height)
 
 
 class GameView(arcade.View):
@@ -365,7 +413,7 @@ class GameView(arcade.View):
             # If a ship was hit, decrease it's hp
             for sprite in hit_list:
                 if sprite in self.ship_list:
-                    sprite.hp -= 100
+                    sprite.hp -= 150
 
         for ship in self.enemy_ship_list:
             # Check for the closest ship
@@ -493,8 +541,14 @@ class GameView(arcade.View):
 
                 # If the player is dead or all the enemy ships are dead
                 # Then go to the GameOverView
-                if len(self.enemy_ship_list) == 0 or len(self.player_list) == 0:
+                if len(self.enemy_ship_list) == 0:
                     game_over_view = GameOverView()
+                    game_over_view.text = "You Won!"
+                    self.window.show_view(game_over_view)
+
+                elif len(self.player_list) == 0:
+                    game_over_view = GameOverView()
+                    game_over_view.text = "You Lost!"
                     self.window.show_view(game_over_view)
 
         # Update these sprites using the update function in their class
@@ -556,6 +610,7 @@ class GameView(arcade.View):
 class GameOverView(arcade.View):
     def __init__(self):
         super().__init__()
+        self.text = None
 
     def on_show(self):
         arcade.set_background_color(arcade.color.OCEAN_BOAT_BLUE)
@@ -565,33 +620,35 @@ class GameOverView(arcade.View):
         """
         Draw "Game over" across the screen.
         """
-        arcade.draw_text("Game Over", self.window.width / 2, self.window.height / 2, arcade.color.WHITE,
+        arcade.draw_text(self.text, self.window.width / 2, self.window.height / 2, arcade.color.WHITE,
                          font_size=100, anchor_x="center")
-        arcade.draw_text("Click to restart", self.window.width / 2, self.window.height / 2 - 100, arcade.color.WHITE,
+        arcade.draw_text("Click to replay", self.window.width / 2, self.window.height / 2 - 100, arcade.color.WHITE,
                          font_size=50, anchor_x="center")
 
     def on_mouse_press(self, _x, _y, _button, _modifiers):
         game_view = GameView()
         self.window.show_view(game_view)
         game_view.on_resize(self.window.width, self.window.height)
-        arcade.run()
 
 
 def main():
     """ Main method """
-    # Set size of window
+    # Set initial size of window
     # This is not a perfect fitting of the display due to any task bars and window heading
-    # Have to do this to get a somewhat accurate window size to set up the ships more towards the middle of the window
     size = arcade.get_display_size(0)
     window = arcade.Window(size[0], size[1], SCREEN_TITLE, resizable=True)
     # Put the window into focus
     window.maximize()
+    # Set a minimum size of window as very small sizes diminish quality of gameplay
+    window.set_min_size(1200, 800)
 
-    # Create the GameView then show it
-    game_view = GameView()
-    window.show_view(game_view)
+    # Create the BufferView then show it
+    # This view is created to allow for correct resize of window
+    buffer_view = BufferView()
+    window.show_view(buffer_view)
     arcade.run()
 
 
+# Runs main()
 if __name__ == "__main__":
     main()
