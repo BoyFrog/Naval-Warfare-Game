@@ -383,19 +383,11 @@ class GameView(arcade.View):
                     x_diff = target.center_x - ship.center_x
                     y_diff = target.center_y - ship.center_y
                     
-                    time_taken = closest_sprite[1] / (TORPEDO_SPEED * 60)
+                    time_taken = closest_sprite[1] / TORPEDO_SPEED
 
                     dx = target.speed * math.cos(math.radians(target.angle)) * time_taken
                     dy = target.speed * math.sin(math.radians(target.angle)) * time_taken
 
-                    distance_to_travel = ((x_diff + dx) ** 2 + (y_diff + dy) ** 2) ** 0.5
-
-                    new_time_taken = distance_to_travel / (TORPEDO_SPEED * 60)
-
-                    ratio = new_time_taken / time_taken
-
-                    dx = dx * ratio
-                    dy = dy * ratio
                     x = x_diff + dx
                     y = y_diff + dy
 
